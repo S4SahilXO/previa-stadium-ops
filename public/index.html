@@ -262,17 +262,37 @@
       <div class="max-w-md mx-auto space-y-6">
         <div class="text-center">
           <h2 class="text-xl font-bold">Previa Fan Copilot</h2>
-          <p class="text-zinc-500 dark:text-zinc-400 text-xs mt-1">Thin consumer view for fans based on main operational decision feed.</p>
+          <p class="text-zinc-500 dark:text-zinc-400 text-xs mt-1">Mobile client simulator showing real-time routing logic and diversions.</p>
         </div>
-        <div class="border border-borderLight dark:border-borderDark bg-cardLight dark:bg-cardDark rounded-xl overflow-hidden shadow-sm">
-          <div class="bg-zinc-100 dark:bg-zinc-800 p-4 border-b border-borderLight dark:border-borderDark flex items-center justify-between">
-            <span class="text-xs font-semibold uppercase text-zinc-500">Live Status: Lusail Stadium</span>
-            <span class="text-xs text-brand font-medium">Updated just now</span>
+
+        <!-- Phone Shell Container -->
+        <div class="relative mx-auto border-[12px] border-zinc-900 dark:border-zinc-800 rounded-[44px] shadow-xl overflow-hidden bg-zinc-50 dark:bg-zinc-950 w-[320px] h-[640px] flex flex-col ring-1 ring-black/5 dark:ring-white/10">
+          <!-- Dynamic Island Notch -->
+          <div class="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-6 bg-zinc-900 dark:bg-zinc-800 rounded-full z-20 flex items-center justify-center">
+            <span class="h-1.5 w-1.5 rounded-full bg-zinc-800 dark:bg-zinc-900 ml-auto mr-3"></span>
           </div>
-          <div class="p-6 space-y-6" id="copilot-container">
-            <!-- JS populated consumer status -->
+
+          <!-- Status Bar -->
+          <div class="h-10 pt-6 px-6 flex justify-between items-center text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 z-10 select-none">
+            <span id="copilot-time">12:00</span>
+            <div class="flex items-center space-x-1">
+              <i data-lucide="signal" class="h-2.5 w-2.5"></i>
+              <i data-lucide="wifi" class="h-2.5 w-2.5"></i>
+              <i data-lucide="battery" class="h-2.5 w-2.5"></i>
+            </div>
+          </div>
+
+          <!-- Screen Contents (Scrollable inside phone) -->
+          <div class="flex-1 overflow-y-auto px-4 pb-4 pt-2 space-y-4 custom-scrollbar text-zinc-900 dark:text-zinc-150" id="copilot-container">
+            <!-- JS populated mobile layout -->
+          </div>
+
+          <!-- Virtual Home Indicator Bar -->
+          <div class="h-4 flex items-center justify-center pb-1 select-none">
+            <div class="w-24 h-1 bg-zinc-900 dark:bg-zinc-800 rounded-full"></div>
           </div>
         </div>
+
       </div>
     </div>
 

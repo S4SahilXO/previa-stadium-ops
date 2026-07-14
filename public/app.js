@@ -464,44 +464,126 @@ function renderPredictiveChart() {
   `;
 }
 
+// Phone clock logic
+function updateCopilotClock() {
+  const clockEl = document.getElementById('copilot-time');
+  if (clockEl) {
+    const now = new Date();
+    const hrs = String(now.getHours()).padStart(2, '0');
+    const mins = String(now.getMinutes()).padStart(2, '0');
+    clockEl.textContent = `${hrs}:${mins}`;
+  }
+}
+setInterval(updateCopilotClock, 1000);
+
 // Render Fan Copilot Thin View (Tab 3)
 function renderCopilot() {
   const container = document.getElementById('copilot-container');
   if (!signalsData || !synthesisData) return;
 
-  // Tailored recommendation message to fans
-  let statusHeader = "Operations Normal";
-  let statusMessage = "Lusail Stadium is running smoothly. All gates are clear and queue times are under 10 minutes.";
-  let actionCard = `
-    <div class="border border-emerald-500/20 bg-emerald-500/5 rounded-lg p-4 text-xs text-emerald-700 dark:text-emerald-400">
-      <strong>Pro Tip:</strong> Arrive through your designated ticket gate. Gate wait times are currently minimal.
-    </div>
-  `;
+  const currentStepNum = signalsData.step;
 
-  if (currentStep >= 1) {
-    statusHeader = "Weather Alert: Heavy Rain";
-    statusMessage = "Rain has started at Lusail Stadium. Concourses and plazas may be wet. Please walk carefully.";
-  }
+  // 1. Status Alert Banner
+  let alertBg = "border-emerald-500/20 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400";
+  let alertTitle = "Operations Normal";
+  let alertDesc = "Lusail Stadium is running smoothly. All gates are clear and wait times are under 10 minutes.";
   
-  if (currentStep >= 3) {
-    statusHeader = "Gate 5 Alert: High Congestion";
-    statusMessage = "Gate 5 is currently experiencing extreme congestion and wait times exceed 45 minutes. Ticket scanning is slowed down by rain conditions.";
-    actionCard = `
-      <div class="border border-amber-500/20 bg-amber-500/5 rounded-lg p-4 text-xs text-amber-700 dark:text-amber-400">
-        <strong>Required Action:</strong> If you are headed to Gate 5, please follow stadium staff instructions and redirect to <strong>Gate 6</strong>, which has wait times under 5 minutes.
-      </div>
+  if (currentStepNum >= 1 && currentStepNum < 3) {
+    alertBg = "border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-400";
+    alertTitle = "Weather Advisory: Wet Concourses";
+    alertDesc = "Heavy rain is causing slick surfaces near entrances. Please use caution and watch your step.";
+  } else if (currentStepNum >= 3) {
+    alertBg = "border-red-500/20 bg-red-500/5 text-red-700 dark:text-red-400";
+    alertTitle = "Diversion: Gate 6 Recommended";
+    alertDesc = "Gate 5 is currently overloaded with wait times exceeding 45 minutes. Divert to Gate 6 to save up to 40 minutes.";
+  }
+
+  // 2. SVG Route Map Visualizer
+  let svgMap = "";
+  if (currentStepNum < 3) {
+    // Normal routing to Gate 5
+    svgMap = `
+      <svg viewBox="0 0 280 120" class="w-full bg-zinc-100 dark:bg-zinc-900/50 border border-borderLight dark:border-borderDark rounded-xl select-none">
+        <!-- Nodes -->
+        <circle cx="40" cy="60" r="16" fill="#e4e4e7" class="dark:fill-zinc-800" />
+        <text x="40" y="63" font-size="9" font-weight="bold" fill="currentColor" class="text-zinc-600 dark:text-zinc-400" text-anchor="middle">Plaza</text>
+
+        <circle cx="160" cy="30" r="16" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-width="1.5" />
+        <text x="160" y="33" font-size="9" font-weight="bold" fill="#10b981" text-anchor="middle">Gate 5</text>
+
+        <circle cx="160" cy="90" r="16" fill="#e4e4e7" class="dark:fill-zinc-800" />
+        <text x="160" y="93" font-size="9" font-weight="bold" fill="currentColor" class="text-zinc-500 dark:text-zinc-400" text-anchor="middle">Gate 6</text>
+
+        <!-- Path to Gate 5 -->
+        <path d="M 58 50 Q 100 20 140 28" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="4,4" class="animate-dash-flow" />
+        <polygon points="144,29 136,24 139,32" fill="#10b981" />
+
+        <text x="100" y="22" font-size="8" font-weight="bold" fill="#10b981" text-anchor="middle">Direct Entry</text>
+      </svg>
+    `;
+  } else {
+    // Congested Gate 5, divert to Gate 6
+    svgMap = `
+      <svg viewBox="0 0 280 120" class="w-full bg-zinc-100 dark:bg-zinc-900/50 border border-borderLight dark:border-borderDark rounded-xl select-none">
+        <!-- Nodes -->
+        <circle cx="40" cy="60" r="16" fill="#e4e4e7" class="dark:fill-zinc-800" />
+        <text x="40" y="63" font-size="9" font-weight="bold" fill="currentColor" class="text-zinc-600 dark:text-zinc-400" text-anchor="middle">Plaza</text>
+
+        <circle cx="160" cy="30" r="16" fill="#ef4444" fill-opacity="0.1" stroke="#ef4444" stroke-width="1.5" />
+        <text x="160" y="33" font-size="9" font-weight="bold" fill="#ef4444" text-anchor="middle">Gate 5</text>
+        <line x1="154" y1="24" x2="166" y2="36" stroke="#ef4444" stroke-width="2" />
+        <line x1="166" y1="24" x2="154" y2="36" stroke="#ef4444" stroke-width="2" />
+
+        <circle cx="160" cy="90" r="16" fill="#2563eb" fill-opacity="0.1" stroke="#2563eb" stroke-width="1.5" />
+        <text x="160" y="93" font-size="9" font-weight="bold" fill="#2563eb" text-anchor="middle">Gate 6</text>
+
+        <!-- Paths -->
+        <path d="M 58 50 Q 100 20 140 28" fill="none" stroke="#ef4444" stroke-width="1.5" opacity="0.4" />
+        <path d="M 58 70 Q 100 100 140 92" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="4,4" class="animate-dash-flow" />
+        <polygon points="144,91 139,88 136,96" fill="#2563eb" />
+
+        <text x="100" y="106" font-size="8" font-weight="bold" fill="#2563eb" text-anchor="middle">Divert to Gate 6</text>
+        <text x="100" y="22" font-size="8" font-weight="bold" fill="#ef4444" text-anchor="middle" opacity="0.8">Overloaded</text>
+      </svg>
     `;
   }
 
+  // 3. Transit Summary Widget
+  const weather = signalsData.weather;
+  const transport = signalsData.transport;
+  const weatherAlertText = weather.rain_rate > 0 ? `${weather.status} (${weather.rain_rate}mm/h)` : "Clear";
+  const busAlertText = transport.bus_arrival_delay_mins > 0 ? `Delayed +${transport.bus_arrival_delay_mins}m` : "On Schedule";
+
   container.innerHTML = `
-    <div class="text-center py-4">
-      <h4 class="text-md font-bold text-zinc-900 dark:text-zinc-100">${statusHeader}</h4>
-      <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-2 leading-relaxed">${statusMessage}</p>
+    <!-- Advisory Header -->
+    <div class="border rounded-2xl p-4 space-y-2 transition-colors ${alertBg}">
+      <h4 class="text-xs font-extrabold uppercase tracking-wide">${alertTitle}</h4>
+      <p class="text-[10px] leading-relaxed opacity-90">${alertDesc}</p>
     </div>
-    
-    <div class="border-t border-borderLight dark:border-borderDark pt-4 space-y-4">
-      <h5 class="text-xs font-semibold uppercase text-zinc-400">Personal Advisory</h5>
-      ${actionCard}
+
+    <!-- Dynamic Map Card -->
+    <div class="space-y-2">
+      <span class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">Visual Walk Route</span>
+      ${svgMap}
+    </div>
+
+    <!-- Live Transit Card -->
+    <div class="bg-white dark:bg-zinc-900 border border-borderLight dark:border-borderDark rounded-2xl p-4 space-y-3 shadow-sm">
+      <span class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">Live Connections</span>
+      <div class="text-[10px] space-y-2">
+        <div class="flex justify-between border-b border-borderLight dark:border-borderDark pb-1.5">
+          <span class="text-zinc-500">Metro Train:</span>
+          <span class="font-bold text-zinc-900 dark:text-zinc-100">Every ${transport.metro_interval_mins} mins</span>
+        </div>
+        <div class="flex justify-between border-b border-borderLight dark:border-borderDark pb-1.5">
+          <span class="text-zinc-500">Terminal Bus:</span>
+          <span class="font-bold ${transport.bus_arrival_delay_mins > 0 ? 'text-amber-500' : 'text-zinc-900 dark:text-zinc-100'}">${busAlertText}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-zinc-500">Local Weather:</span>
+          <span class="font-bold ${weather.rain_rate > 0 ? 'text-blue-500' : 'text-zinc-900 dark:text-zinc-100'}">${weatherAlertText}</span>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -530,4 +612,5 @@ document.querySelectorAll('.proj-btn').forEach(btn => {
 window.addEventListener('DOMContentLoaded', () => {
   loadScenarioStep(0);
   updateProjectionButtons();
+  updateCopilotClock();
 });

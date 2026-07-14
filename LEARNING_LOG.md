@@ -154,4 +154,26 @@ We opted to generate projections by recursively calling the simulation logic for
 Navigate to the "Crowd Predictor" tab and toggle between the projection buttons. Watch the stadium gate grid update dynamically, and observe the trajectory chart redraw Gate 5's line as you cycle the scenario step inputs.
 
 ### Open questions / what's next
-In Phase 5, we will build the Fan Copilot advisor client layout, displaying tailored alerts, gate diversions, and transit updates based on active sensor data.
+In the next step, we will wire and test the Gemini API connection with a simple script to verify our credentials before setting up the mock data pipeline in Phase 1.
+
+---
+
+## [Phase 5] — Fan Copilot Mobile Simulator and SVG Route Maps — 2026-07-14
+
+### What we built
+We built a physical mobile phone simulator preview widget (featuring a curved iPhone-like border, dynamic island notch, virtual home indicator bar, live clock, and status signal/wifi/battery icons) inside the Fan Copilot tab workspace. We updated the rendering code to dynamically populate the mobile screen with tailored status alert cards, transit connection grids, and walking diversion maps built entirely from animated, inline SVGs. Finally, we added keyframe path animations in `public/styles.css` to draw fluid walking paths.
+
+### Why we built it this way
+We opted to wrap the Fan Copilot inside a realistic mobile device shell to give operators a visual representation of how our synthesized AI decisions directly translate to advice for stadium visitors. We built the walking diversion map in SVG and animated it using native CSS animations (`animate-dash-flow`) to keep the interface highly interactive without loading external layout packages or heavy asset images, aligning with the Ponytail rule of deleting dependencies and boilerplates.
+
+### Key code/concepts to understand
+- [public/index.html](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/index.html) — wraps the scrollable copilot container in a multi-layered phone shell layout.
+- [public/app.js](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/app.js) (`renderCopilot`) — updates alert text, connection details, and maps paths inside the inline SVG map dynamically.
+- [public/styles.css](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/styles.css) — contains the `@keyframes dash-flow` rules to animate paths.
+- Concept: Keyframe Path Animation — manipulating the SVG `stroke-dashoffset` property over time using CSS animations to simulate walking or flow directions.
+
+### Try it yourself
+Open the "Fan Copilot" tab. Note the live digital clock updating to match your device time. Cycle steps: on Step 0 (Clear) the animated walk arrow directs traffic straight into Gate 5; on Step 3 (Surge) the route maps redraws showing a congested red cross on Gate 5 and a blue diversion path to Gate 6.
+
+### Open questions / what's next
+In Phase 6, we will implement the Security / Incident Logging system, showing alert widgets, logs detail grid, and map coordinate overrides when medical or safety emergencies trigger.
