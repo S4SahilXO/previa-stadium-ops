@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Previa — AI Stadium Operations Dashboard</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              DEFAULT: '#2563eb', // Clean operational blue
+              dark: '#1d4ed8'
+            },
+            bgLight: '#f9fafb',
+            bgDark: '#09090b',
+            cardLight: '#ffffff',
+            cardDark: '#18181b',
+            borderLight: '#e4e4e7',
+            borderDark: '#27272a',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      -webkit-font-smoothing: antialiased;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #3f3f46;
+      border-radius: 3px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #52525b;
+    }
+  </style>
+</head>
+<body class="bg-bgLight text-zinc-900 dark:bg-bgDark dark:text-zinc-100 min-h-screen flex flex-col transition-colors duration-200">
+  <!-- Theme Sync Script to prevent flash -->
+  <script>
+    if (localStorage.getItem('theme') === 'light') {
+      document.documentElement.classList.remove('dark');
+    } else {
+      document.documentElement.classList.add('dark');
+    }
+  </script>
+
+  <!-- Top Header Navigation -->
+  <header class="border-b border-borderLight dark:border-borderDark bg-cardLight/80 dark:bg-cardDark/80 backdrop-blur sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <!-- Minimalist Logo -->
+      <div class="h-6 w-6 bg-brand rounded flex items-center justify-center text-white font-bold text-xs">P</div>
+      <h1 class="font-semibold text-lg tracking-tight">Previa <span class="text-xs font-normal text-zinc-500 ml-2">FIFA 2026 Ops</span></h1>
+    </div>
+    
+    <!-- Navigation Tabs -->
+    <nav class="flex space-x-1 bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-lg text-sm">
+      <button id="tab-command" class="px-4 py-1.5 rounded-md font-medium text-brand dark:text-white bg-white dark:bg-zinc-800 shadow-sm transition-all">
+        Command Center
+      </button>
+      <button id="tab-crowd" class="px-4 py-1.5 rounded-md font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-all">
+        Crowd Predictor
+      </button>
+      <button id="tab-copilot" class="px-4 py-1.5 rounded-md font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-all">
+        Fan Copilot
+      </button>
+    </nav>
+
+    <!-- Theme & System Status Controls -->
+    <div class="flex items-center space-x-4">
+      <div id="ai-status" class="flex items-center space-x-2 text-xs bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-900/50">
+        <span class="relative flex h-2 w-2">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+        <span class="font-medium">AI Live</span>
+      </div>
+
+      <button id="theme-toggle" class="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500 dark:text-zinc-400 transition-all" aria-label="Toggle theme">
+        <i data-lucide="sun" class="h-4 w-4 hidden dark:block"></i>
+        <i data-lucide="moon" class="h-4 w-4 block dark:hidden"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Live Demo Scenario Controller (Float / Sticky Control) -->
+  <section class="bg-zinc-100 dark:bg-zinc-900/50 border-b border-borderLight dark:border-borderDark px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center space-x-2 text-xs">
+      <i data-lucide="play" class="h-3.5 w-3.5 text-brand"></i>
+      <span class="font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Demo Scenario Controller:</span>
+    </div>
+    <div class="flex items-center space-x-2 flex-wrap gap-y-2" id="scenario-buttons">
+      <button data-step="0" class="scenario-btn px-3 py-1.5 text-xs font-semibold rounded bg-brand text-white shadow-sm border border-brand/20">
+        0. Baseline
+      </button>
+      <button data-step="1" class="scenario-btn px-3 py-1.5 text-xs font-semibold rounded bg-cardLight dark:bg-cardDark text-zinc-600 dark:text-zinc-300 border border-borderLight dark:border-borderDark hover:bg-zinc-50 dark:hover:bg-zinc-800">
+        1. Heavy Rain
+      </button>
+      <button data-step="2" class="scenario-btn px-3 py-1.5 text-xs font-semibold rounded bg-cardLight dark:bg-cardDark text-zinc-600 dark:text-zinc-300 border border-borderLight dark:border-borderDark hover:bg-zinc-50 dark:hover:bg-zinc-800">
+        2. Transport Surge
+      </button>
+      <button data-step="3" class="scenario-btn px-3 py-1.5 text-xs font-semibold rounded bg-cardLight dark:bg-cardDark text-zinc-600 dark:text-zinc-300 border border-borderLight dark:border-borderDark hover:bg-zinc-50 dark:hover:bg-zinc-800">
+        3. Gate Overload
+      </button>
+      <button data-step="4" class="scenario-btn px-3 py-1.5 text-xs font-semibold rounded bg-cardLight dark:bg-cardDark text-zinc-600 dark:text-zinc-300 border border-borderLight dark:border-borderDark hover:bg-zinc-50 dark:hover:bg-zinc-800">
+        4. Medical Call
+      </button>
+    </div>
+  </section>
+
+  <!-- Main View Workspace -->
+  <main class="flex-1 flex overflow-hidden">
+
+    <!-- VIEW 1: COMMAND CENTER -->
+    <div id="view-command" class="flex-1 flex overflow-hidden">
+      <!-- Left Column: Raw Operational Signals (Inputs) -->
+      <aside class="w-80 border-r border-borderLight dark:border-borderDark bg-cardLight/50 dark:bg-cardDark/50 flex flex-col overflow-y-auto custom-scrollbar p-6 space-y-6">
+        <div>
+          <h2 class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider mb-4">Stadium Signals</h2>
+          <div class="space-y-4" id="signals-container">
+            <!-- Loading States or Filled by JS -->
+            <div class="animate-pulse bg-zinc-200 dark:bg-zinc-800 h-20 rounded"></div>
+            <div class="animate-pulse bg-zinc-200 dark:bg-zinc-800 h-20 rounded"></div>
+            <div class="animate-pulse bg-zinc-200 dark:bg-zinc-800 h-20 rounded"></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center & Right Workspace: Decision & Feed -->
+      <section class="flex-1 flex overflow-hidden">
+        <!-- AI Decision Feed (Synthesized Output) -->
+        <div class="flex-1 overflow-y-auto custom-scrollbar p-8 flex flex-col space-y-6">
+          <!-- Main Synthesis Card -->
+          <div class="border border-borderLight dark:border-borderDark bg-cardLight dark:bg-cardDark rounded-xl p-6 shadow-sm">
+            <div class="flex items-start justify-between mb-4">
+              <div>
+                <span class="text-xs font-semibold text-brand tracking-wider uppercase">Orchestrated AI Assessment</span>
+                <h3 class="text-xl font-bold mt-1" id="synthesis-summary-title">Loading system analysis...</h3>
+              </div>
+              <div class="text-right">
+                <span class="text-xs text-zinc-400 dark:text-zinc-500 block">Overall Confidence</span>
+                <span class="text-2xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-50" id="synthesis-confidence">--</span>
+              </div>
+            </div>
+            
+            <!-- Perspectives Risk Badge Grid -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mt-6 pt-6 border-t border-borderLight dark:border-borderDark" id="perspectives-container">
+              <!-- JS Injected dynamic risk badges -->
+            </div>
+          </div>
+
+          <!-- Recommendations Feed -->
+          <div>
+            <h3 class="text-sm font-semibold text-zinc-400 uppercase tracking-wider mb-4">Actionable AI Recommendations</h3>
+            <div class="space-y-3" id="recommendations-container">
+              <!-- JS Injected recommendation cards -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Recommendation Details Panel -->
+        <aside id="detail-panel" class="w-96 border-l border-borderLight dark:border-borderDark bg-cardLight/80 dark:bg-cardDark/80 p-6 overflow-y-auto custom-scrollbar hidden">
+          <div class="flex items-center justify-between mb-6 pb-4 border-b border-borderLight dark:border-borderDark">
+            <h4 class="font-semibold text-md">Recommendation Detail</h4>
+            <button id="close-detail" class="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-500">
+              <i data-lucide="x" class="h-4 w-4"></i>
+            </button>
+          </div>
+          <div id="detail-content" class="space-y-6">
+            <!-- Injected Detail Content -->
+          </div>
+        </aside>
+      </section>
+    </div>
+
+    <!-- VIEW 2: PREDICTIVE CROWD VIEW -->
+    <div id="view-crowd" class="flex-1 p-8 overflow-y-auto custom-scrollbar hidden">
+      <div class="max-w-4xl mx-auto space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold">Predictive Crowd Intelligence</h2>
+          <p class="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Zone density and gate throughput predictions for the next 15-30 minutes.</p>
+        </div>
+        
+        <!-- Interactive Heatmap Mockup Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="md:col-span-2 border border-borderLight dark:border-borderDark bg-cardLight dark:bg-cardDark rounded-xl p-6 flex flex-col justify-between">
+            <h3 class="font-semibold text-sm mb-4">Stadium Entry Gates Status Map</h3>
+            <!-- Zone layout representing FIFA Stadium -->
+            <div class="grid grid-cols-3 gap-4 h-64 p-4 border border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950/50 rounded-lg" id="crowd-map-grid">
+              <!-- JS will build custom cells -->
+            </div>
+          </div>
+          <div class="border border-borderLight dark:border-borderDark bg-cardLight dark:bg-cardDark rounded-xl p-6 flex flex-col space-y-4">
+            <h3 class="font-semibold text-sm">Gate Metric Overview</h3>
+            <div class="space-y-3" id="crowd-metrics-container">
+              <!-- JS filled -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 3: FAN COPILOT VIEW -->
+    <div id="view-copilot" class="flex-1 p-8 overflow-y-auto custom-scrollbar hidden">
+      <div class="max-w-md mx-auto space-y-6">
+        <div class="text-center">
+          <h2 class="text-xl font-bold">Previa Fan Copilot</h2>
+          <p class="text-zinc-500 dark:text-zinc-400 text-xs mt-1">Thin consumer view for fans based on main operational decision feed.</p>
+        </div>
+        <div class="border border-borderLight dark:border-borderDark bg-cardLight dark:bg-cardDark rounded-xl overflow-hidden shadow-sm">
+          <div class="bg-zinc-100 dark:bg-zinc-800 p-4 border-b border-borderLight dark:border-borderDark flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase text-zinc-500">Live Status: Lusail Stadium</span>
+            <span class="text-xs text-brand font-medium">Updated just now</span>
+          </div>
+          <div class="p-6 space-y-6" id="copilot-container">
+            <!-- JS populated consumer status -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Script logic hook -->
+  <script src="/app.js"></script>
+</body>
+</html>
