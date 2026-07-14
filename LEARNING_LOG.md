@@ -198,4 +198,25 @@ We opted to manage the incidents log entirely in client-side state arrays initia
 Switch to Step 4 to trigger the medical incident. Click "Dispatch" on the top-floating banner to redirect to the Incident Logs tab. Click "Resolve" next to the slip-and-fall row and notice the left-hand sidebar update to green "0 Alert(s)" immediately.
 
 ### Open questions / what's next
-In Phase 7, we will build out the Fan Copilot chat workspace, adding a mock chat bubble UI that lets fans interactively ask questions and receive operational guidance.
+In the next step, we will wire and test the Gemini API connection with a simple script to verify our credentials before setting up the mock data pipeline in Phase 1.
+
+---
+
+## [Phase 7] — Fan Copilot Chat Integration — 2026-07-14
+
+### What we built
+We built an interactive, telemetry-aware mock chat workspace inside the mobile emulator frame. Fans can switch between the "Advisory" viewport and the "Live Assistant" chatbot. We implemented a message log display, suggested question quick action triggers, input submits, typing indicators with animation pulses, and dynamic response logic that extracts current queue times, weather warnings, and transport schedules to tailor answers.
+
+### Why we built it this way
+We wanted to provide a seamless mobile experience inside the physical iPhone shell mockup. Since the fan copilot is client-facing telemetry, keeping the state local in a `copilotMessages` array avoids server roundtrips and handles instant routing changes. Incorporating suggesting prompt buttons makes it easy for fans to experience real-time responses to critical events without having to type the query out.
+
+### Key code/concepts to understand
+- [public/app.js](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/app.js) (`renderCopilot`) — manages the toggle states and builds the bubble container layouts dynamically.
+- [public/app.js](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/app.js) (`calculateCopilotResponse`) — evaluates string keywords and retrieves active queue values to answer questions.
+- Concept: Interactive mock latencies — using `setTimeout` triggers inside standard event loops to model network thinking latency, enhancing realism.
+
+### Try it yourself
+Open the Fan Copilot tab, select Live Assistant, and click "How do I bypass the Gate 5 queue?". Observe the pulsing dots and the dynamic answer. Switch to Step 3, re-ask, and confirm it recommends Gate 6.
+
+### Open questions / what's next
+In Phase 8, we will perform a full compliance and file sizing verification check to make sure the project builds and is ready for direct submission.

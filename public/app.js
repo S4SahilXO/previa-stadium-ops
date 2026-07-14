@@ -5,6 +5,11 @@ let synthesisData = null;
 let activeProjection = 'current';
 let incidentsData = [];
 let acknowledgedAlerts = new Set();
+let activeCopilotView = 'advisory'; // 'advisory' or 'assistant'
+let copilotMessages = [
+  { sender: 'copilot', text: "Hello! I am your Lusail Stadium Assistant. How can I help you navigate today?" }
+];
+let copilotTyping = false;
 
 // Tab Management
 const tabs = {
@@ -503,109 +508,262 @@ function renderCopilot() {
 
   const currentStepNum = signalsData.step;
 
-  // 1. Status Alert Banner
-  let alertBg = "border-emerald-500/20 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400";
-  let alertTitle = "Operations Normal";
-  let alertDesc = "Lusail Stadium is running smoothly. All gates are clear and wait times are under 10 minutes.";
+  // View Segment Selector Header
+  const isAdv = activeCopilotView === 'advisory';
+  const isChat = activeCopilotView === 'assistant';
   
-  if (currentStepNum >= 1 && currentStepNum < 3) {
-    alertBg = "border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-400";
-    alertTitle = "Weather Advisory: Wet Concourses";
-    alertDesc = "Heavy rain is causing slick surfaces near entrances. Please use caution and watch your step.";
-  } else if (currentStepNum >= 3) {
-    alertBg = "border-red-500/20 bg-red-500/5 text-red-700 dark:text-red-400";
-    alertTitle = "Diversion: Gate 6 Recommended";
-    alertDesc = "Gate 5 is currently overloaded with wait times exceeding 45 minutes. Divert to Gate 6 to save up to 40 minutes.";
-  }
-
-  // 2. SVG Route Map Visualizer
-  let svgMap = "";
-  if (currentStepNum < 3) {
-    // Normal routing to Gate 5
-    svgMap = `
-      <svg viewBox="0 0 280 120" class="w-full bg-zinc-100 dark:bg-zinc-900/50 border border-borderLight dark:border-borderDark rounded-xl select-none">
-        <!-- Nodes -->
-        <circle cx="40" cy="60" r="16" fill="#e4e4e7" class="dark:fill-zinc-800" />
-        <text x="40" y="63" font-size="9" font-weight="bold" fill="currentColor" class="text-zinc-600 dark:text-zinc-400" text-anchor="middle">Plaza</text>
-
-        <circle cx="160" cy="30" r="16" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-width="1.5" />
-        <text x="160" y="33" font-size="9" font-weight="bold" fill="#10b981" text-anchor="middle">Gate 5</text>
-
-        <circle cx="160" cy="90" r="16" fill="#e4e4e7" class="dark:fill-zinc-800" />
-        <text x="160" y="93" font-size="9" font-weight="bold" fill="currentColor" class="text-zinc-500 dark:text-zinc-400" text-anchor="middle">Gate 6</text>
-
-        <!-- Path to Gate 5 -->
-        <path d="M 58 50 Q 100 20 140 28" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="4,4" class="animate-dash-flow" />
-        <polygon points="144,29 136,24 139,32" fill="#10b981" />
-
-        <text x="100" y="22" font-size="8" font-weight="bold" fill="#10b981" text-anchor="middle">Direct Entry</text>
-      </svg>
-    `;
-  } else {
-    // Congested Gate 5, divert to Gate 6
-    svgMap = `
-      <svg viewBox="0 0 280 120" class="w-full bg-zinc-100 dark:bg-zinc-900/50 border border-borderLight dark:border-borderDark rounded-xl select-none">
-        <!-- Nodes -->
-        <circle cx="40" cy="60" r="16" fill="#e4e4e7" class="dark:fill-zinc-800" />
-        <text x="40" y="63" font-size="9" font-weight="bold" fill="currentColor" class="text-zinc-600 dark:text-zinc-400" text-anchor="middle">Plaza</text>
-
-        <circle cx="160" cy="30" r="16" fill="#ef4444" fill-opacity="0.1" stroke="#ef4444" stroke-width="1.5" />
-        <text x="160" y="33" font-size="9" font-weight="bold" fill="#ef4444" text-anchor="middle">Gate 5</text>
-        <line x1="154" y1="24" x2="166" y2="36" stroke="#ef4444" stroke-width="2" />
-        <line x1="166" y1="24" x2="154" y2="36" stroke="#ef4444" stroke-width="2" />
-
-        <circle cx="160" cy="90" r="16" fill="#2563eb" fill-opacity="0.1" stroke="#2563eb" stroke-width="1.5" />
-        <text x="160" y="93" font-size="9" font-weight="bold" fill="#2563eb" text-anchor="middle">Gate 6</text>
-
-        <!-- Paths -->
-        <path d="M 58 50 Q 100 20 140 28" fill="none" stroke="#ef4444" stroke-width="1.5" opacity="0.4" />
-        <path d="M 58 70 Q 100 100 140 92" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="4,4" class="animate-dash-flow" />
-        <polygon points="144,91 139,88 136,96" fill="#2563eb" />
-
-        <text x="100" y="106" font-size="8" font-weight="bold" fill="#2563eb" text-anchor="middle">Divert to Gate 6</text>
-        <text x="100" y="22" font-size="8" font-weight="bold" fill="#ef4444" text-anchor="middle" opacity="0.8">Overloaded</text>
-      </svg>
-    `;
-  }
-
-  // 3. Transit Summary Widget
-  const weather = signalsData.weather;
-  const transport = signalsData.transport;
-  const weatherAlertText = weather.rain_rate > 0 ? `${weather.status} (${weather.rain_rate}mm/h)` : "Clear";
-  const busAlertText = transport.bus_arrival_delay_mins > 0 ? `Delayed +${transport.bus_arrival_delay_mins}m` : "On Schedule";
-
-  container.innerHTML = `
-    <!-- Advisory Header -->
-    <div class="border rounded-2xl p-4 space-y-2 transition-colors ${alertBg}">
-      <h4 class="text-xs font-extrabold uppercase tracking-wide">${alertTitle}</h4>
-      <p class="text-[10px] leading-relaxed opacity-90">${alertDesc}</p>
-    </div>
-
-    <!-- Dynamic Map Card -->
-    <div class="space-y-2">
-      <span class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">Visual Walk Route</span>
-      ${svgMap}
-    </div>
-
-    <!-- Live Transit Card -->
-    <div class="bg-white dark:bg-zinc-900 border border-borderLight dark:border-borderDark rounded-2xl p-4 space-y-3 shadow-sm">
-      <span class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">Live Connections</span>
-      <div class="text-[10px] space-y-2">
-        <div class="flex justify-between border-b border-borderLight dark:border-borderDark pb-1.5">
-          <span class="text-zinc-500">Metro Train:</span>
-          <span class="font-bold text-zinc-900 dark:text-zinc-100">Every ${transport.metro_interval_mins} mins</span>
-        </div>
-        <div class="flex justify-between border-b border-borderLight dark:border-borderDark pb-1.5">
-          <span class="text-zinc-500">Terminal Bus:</span>
-          <span class="font-bold ${transport.bus_arrival_delay_mins > 0 ? 'text-amber-500' : 'text-zinc-900 dark:text-zinc-100'}">${busAlertText}</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-zinc-500">Local Weather:</span>
-          <span class="font-bold ${weather.rain_rate > 0 ? 'text-blue-500' : 'text-zinc-900 dark:text-zinc-100'}">${weatherAlertText}</span>
-        </div>
-      </div>
+  const btnAdvClass = isAdv ? "flex-1 py-1 rounded text-center bg-white dark:bg-zinc-800 shadow-sm text-brand dark:text-white font-bold" : "flex-1 py-1 text-center text-zinc-400 hover:text-zinc-500 font-medium";
+  const btnChatClass = isChat ? "flex-1 py-1 rounded text-center bg-white dark:bg-zinc-800 shadow-sm text-brand dark:text-white font-bold" : "flex-1 py-1 text-center text-zinc-400 hover:text-zinc-500 font-medium";
+  
+  let segmentControls = `
+    <div class="flex bg-zinc-100 dark:bg-zinc-900 border border-borderLight dark:border-borderDark rounded-lg p-1 text-[10px] select-none mb-3">
+      <button onclick="toggleCopilotView('advisory')" class="${btnAdvClass}">Advisory</button>
+      <button onclick="toggleCopilotView('assistant')" class="${btnChatClass}">Live Assistant</button>
     </div>
   `;
+
+  if (isAdv) {
+    // 1. Status Alert Banner
+    let alertBg = "border-emerald-500/20 bg-emerald-500/5 text-emerald-700 dark:text-emerald-400";
+    let alertTitle = "Operations Normal";
+    let alertDesc = "Lusail Stadium is running smoothly. All gates are clear and wait times are under 10 minutes.";
+    
+    if (currentStepNum >= 1 && currentStepNum < 3) {
+      alertBg = "border-amber-500/20 bg-amber-500/5 text-amber-700 dark:text-amber-400";
+      alertTitle = "Weather Advisory: Wet Concourses";
+      alertDesc = "Heavy rain is causing slick surfaces near entrances. Please use caution and watch your step.";
+    } else if (currentStepNum >= 3) {
+      alertBg = "border-red-500/20 bg-red-500/5 text-red-700 dark:text-red-400";
+      alertTitle = "Diversion: Gate 6 Recommended";
+      alertDesc = "Gate 5 is currently overloaded with wait times exceeding 45 minutes. Divert to Gate 6 to save up to 40 minutes.";
+    }
+
+    // 2. SVG Route Map Visualizer
+    let svgMap = "";
+    if (currentStepNum < 3) {
+      // Normal routing to Gate 5
+      svgMap = `
+        <svg viewBox="0 0 280 120" class="w-full bg-zinc-100 dark:bg-zinc-900/50 border border-borderLight dark:border-borderDark rounded-xl select-none">
+          <!-- Nodes -->
+          <circle cx="40" cy="60" r="16" fill="#e4e4e7" class="dark:fill-zinc-800" />
+          <text x="40" y="63" font-size="9" font-weight="bold" fill="currentColor" class="text-zinc-600 dark:text-zinc-400" text-anchor="middle">Plaza</text>
+
+          <circle cx="160" cy="30" r="16" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-width="1.5" />
+          <text x="160" y="33" font-size="9" font-weight="bold" fill="#10b981" text-anchor="middle">Gate 5</text>
+
+          <circle cx="160" cy="90" r="16" fill="#e4e4e7" class="dark:fill-zinc-800" />
+          <text x="160" y="93" font-size="9" font-weight="bold" fill="currentColor" class="text-zinc-500 dark:text-zinc-400" text-anchor="middle">Gate 6</text>
+
+          <!-- Path to Gate 5 -->
+          <path d="M 58 50 Q 100 20 140 28" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="4,4" class="animate-dash-flow" />
+          <polygon points="144,29 136,24 139,32" fill="#10b981" />
+
+          <text x="100" y="22" font-size="8" font-weight="bold" fill="#10b981" text-anchor="middle">Direct Entry</text>
+        </svg>
+      `;
+    } else {
+      // Congested Gate 5, divert to Gate 6
+      svgMap = `
+        <svg viewBox="0 0 280 120" class="w-full bg-zinc-100 dark:bg-zinc-900/50 border border-borderLight dark:border-borderDark rounded-xl select-none">
+          <!-- Nodes -->
+          <circle cx="40" cy="60" r="16" fill="#e4e4e7" class="dark:fill-zinc-800" />
+          <text x="40" y="63" font-size="9" font-weight="bold" fill="currentColor" class="text-zinc-600 dark:text-zinc-400" text-anchor="middle">Plaza</text>
+
+          <circle cx="160" cy="30" r="16" fill="#ef4444" fill-opacity="0.1" stroke="#ef4444" stroke-width="1.5" />
+          <text x="160" y="33" font-size="9" font-weight="bold" fill="#ef4444" text-anchor="middle">Gate 5</text>
+          <line x1="154" y1="24" x2="166" y2="36" stroke="#ef4444" stroke-width="2" />
+          <line x1="166" y1="24" x2="154" y2="36" stroke="#ef4444" stroke-width="2" />
+
+          <circle cx="160" cy="90" r="16" fill="#2563eb" fill-opacity="0.1" stroke="#2563eb" stroke-width="1.5" />
+          <text x="160" y="93" font-size="9" font-weight="bold" fill="#2563eb" text-anchor="middle">Gate 6</text>
+
+          <!-- Paths -->
+          <path d="M 58 50 Q 100 20 140 28" fill="none" stroke="#ef4444" stroke-width="1.5" opacity="0.4" />
+          <path d="M 58 70 Q 100 100 140 92" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="4,4" class="animate-dash-flow" />
+          <polygon points="144,91 139,88 136,96" fill="#2563eb" />
+
+          <text x="100" y="106" font-size="8" font-weight="bold" fill="#2563eb" text-anchor="middle">Divert to Gate 6</text>
+          <text x="100" y="22" font-size="8" font-weight="bold" fill="#ef4444" text-anchor="middle" opacity="0.8">Overloaded</text>
+        </svg>
+      `;
+    }
+
+    // 3. Transit Summary Widget
+    const weather = signalsData.weather;
+    const transport = signalsData.transport;
+    const weatherAlertText = weather.rain_rate > 0 ? `${weather.status} (${weather.rain_rate}mm/h)` : "Clear";
+    const busAlertText = transport.bus_arrival_delay_mins > 0 ? `Delayed +${transport.bus_arrival_delay_mins}m` : "On Schedule";
+
+    container.innerHTML = `
+      ${segmentControls}
+      <!-- Advisory Header -->
+      <div class="border rounded-2xl p-4 space-y-2 transition-colors ${alertBg}">
+        <h4 class="text-xs font-extrabold uppercase tracking-wide">${alertTitle}</h4>
+        <p class="text-[10px] leading-relaxed opacity-90">${alertDesc}</p>
+      </div>
+
+      <!-- Dynamic Map Card -->
+      <div class="space-y-2">
+        <span class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">Visual Walk Route</span>
+        ${svgMap}
+      </div>
+
+      <!-- Live Transit Card -->
+      <div class="bg-white dark:bg-zinc-900 border border-borderLight dark:border-borderDark rounded-2xl p-4 space-y-3 shadow-sm">
+        <span class="text-[10px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">Live Connections</span>
+        <div class="text-[10px] space-y-2">
+          <div class="flex justify-between border-b border-borderLight dark:border-borderDark pb-1.5">
+            <span class="text-zinc-500">Metro Train:</span>
+            <span class="font-bold text-zinc-900 dark:text-zinc-100">Every ${transport.metro_interval_mins} mins</span>
+          </div>
+          <div class="flex justify-between border-b border-borderLight dark:border-borderDark pb-1.5">
+            <span class="text-zinc-500">Terminal Bus:</span>
+            <span class="font-bold ${transport.bus_arrival_delay_mins > 0 ? 'text-amber-500' : 'text-zinc-900 dark:text-zinc-100'}">${busAlertText}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-zinc-500">Local Weather:</span>
+            <span class="font-bold ${weather.rain_rate > 0 ? 'text-blue-500' : 'text-zinc-900 dark:text-zinc-100'}">${weatherAlertText}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    // Render Chat Assistant Sub-panel
+    let chatBubbles = copilotMessages.map(msg => {
+      const isUser = msg.sender === 'user';
+      const bubbleBg = isUser ? 'bg-brand text-white self-end rounded-br-none' : 'bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 self-start rounded-bl-none';
+      return `
+        <div class="max-w-[85%] rounded-2xl px-3 py-2 text-[10px] leading-relaxed shadow-sm font-medium ${bubbleBg}">
+          ${msg.text}
+        </div>
+      `;
+    }).join('');
+
+    if (copilotTyping) {
+      chatBubbles += `
+        <div class="bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 self-start rounded-2xl rounded-bl-none px-3 py-2 text-[10px] leading-relaxed shadow-sm flex items-center space-x-1 w-12 justify-center">
+          <span class="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-pulse"></span>
+          <span class="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-pulse delay-75"></span>
+          <span class="h-1.5 w-1.5 rounded-full bg-zinc-400 animate-pulse delay-150"></span>
+        </div>
+      `;
+    }
+
+    container.innerHTML = `
+      ${segmentControls}
+      <div class="flex flex-col h-[520px] justify-between">
+        <!-- Chat History -->
+        <div class="flex-1 flex flex-col space-y-3 overflow-y-auto pr-1 pb-4 custom-scrollbar" id="copilot-chat-history">
+          ${chatBubbles}
+        </div>
+
+        <!-- Suggestions and input footer -->
+        <div class="space-y-3 pt-2 bg-zinc-50 dark:bg-zinc-950 border-t border-borderLight dark:border-borderDark">
+          <div class="space-y-1">
+            <span class="text-[9px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider block">Suggested Questions</span>
+            <div class="flex flex-col space-y-1">
+              <button onclick="askCopilotPrompt('bypass')" class="w-full text-left px-2.5 py-1.5 bg-white dark:bg-zinc-900 border border-borderLight dark:border-borderDark hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-[9px] text-zinc-600 dark:text-zinc-400 font-medium transition-colors truncate">How do I bypass the Gate 5 queue?</button>
+              <button onclick="askCopilotPrompt('weather')" class="w-full text-left px-2.5 py-1.5 bg-white dark:bg-zinc-900 border border-borderLight dark:border-borderDark hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-[9px] text-zinc-600 dark:text-zinc-400 font-medium transition-colors truncate">Is there a wet floor hazard?</button>
+              <button onclick="askCopilotPrompt('metro')" class="w-full text-left px-2.5 py-1.5 bg-white dark:bg-zinc-900 border border-borderLight dark:border-borderDark hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg text-[9px] text-zinc-600 dark:text-zinc-400 font-medium transition-colors truncate">What is the metro schedule?</button>
+            </div>
+          </div>
+
+          <!-- Message Form -->
+          <form onsubmit="handleCopilotChatSubmit(event)" class="flex items-center space-x-1.5">
+            <input type="text" id="copilot-chat-input" placeholder="Ask assistant..." class="flex-1 bg-white dark:bg-zinc-900 border border-borderLight dark:border-borderDark rounded-lg px-2.5 py-1.5 text-[9px] focus:outline-none focus:ring-1 focus:ring-brand text-zinc-900 dark:text-zinc-100" autocomplete="off" required />
+            <button type="submit" class="p-1.5 bg-brand hover:bg-brand/90 text-white rounded-lg shadow-sm transition-colors flex items-center justify-center">
+              <i data-lucide="send" class="h-3.5 w-3.5"></i>
+            </button>
+          </form>
+        </div>
+      </div>
+    `;
+    lucide.createIcons();
+    scrollChatBottom();
+  }
+}
+
+// Window globally exposed handlers for click triggers
+window.toggleCopilotView = function(view) {
+  activeCopilotView = view;
+  renderCopilot();
+};
+
+window.askCopilotPrompt = function(promptKey) {
+  let userText = "";
+  if (promptKey === 'bypass') userText = "How do I bypass the Gate 5 queue?";
+  if (promptKey === 'weather') userText = "Is there a wet floor hazard?";
+  if (promptKey === 'metro') userText = "What is the metro schedule?";
+  
+  if (userText) {
+    sendCopilotMessage(userText);
+  }
+};
+
+window.handleCopilotChatSubmit = function(e) {
+  e.preventDefault();
+  const input = document.getElementById('copilot-chat-input');
+  if (input && input.value.trim()) {
+    sendCopilotMessage(input.value.trim());
+    input.value = "";
+  }
+};
+
+function scrollChatBottom() {
+  setTimeout(() => {
+    const chatHist = document.getElementById('copilot-chat-history');
+    if (chatHist) {
+      chatHist.scrollTop = chatHist.scrollHeight;
+    }
+  }, 20);
+}
+
+function sendCopilotMessage(text) {
+  copilotMessages.push({ sender: 'user', text });
+  copilotTyping = true;
+  renderCopilot();
+
+  setTimeout(() => {
+    copilotTyping = false;
+    const responseText = calculateCopilotResponse(text);
+    copilotMessages.push({ sender: 'copilot', text: responseText });
+    renderCopilot();
+  }, 600);
+}
+
+function calculateCopilotResponse(text) {
+  const normText = text.toLowerCase();
+  const currentStepNum = signalsData.step;
+
+  if (normText.includes('bypass') || normText.includes('gate 5') || normText.includes('queue') || normText.includes('congest')) {
+    if (currentStepNum >= 3) {
+      return `Gate 5 is currently overloaded with a wait time of ${signalsData.gates["Gate 5"].wait_time} minutes. I highly recommend diverting to **Gate 6**, which is clear with a wait time under ${signalsData.gates["Gate 6"].wait_time} minutes. This walk will save you approximately 40 minutes!`;
+    } else {
+      return `Gate 5 queue wait time is currently only ${signalsData.gates["Gate 5"].wait_time} minutes. You can proceed directly to Gate 5 for entry.`;
+    }
+  }
+
+  if (normText.includes('weather') || normText.includes('rain') || normText.includes('wet') || normText.includes('floor') || normText.includes('slip')) {
+    if (signalsData.weather.rain_rate > 0) {
+      return `Yes, heavy rain (${signalsData.weather.rain_rate}mm/h) is causing slippery plaza surfaces near scanning lanes. Please watch your step and walk carefully.`;
+    } else {
+      return "Concourses are dry. Weather is clear with excellent visibility. Operational lanes are clear.";
+    }
+  }
+
+  if (normText.includes('metro') || normText.includes('train') || normText.includes('schedule') || normText.includes('depart')) {
+    return `Metro trains are departing every ${signalsData.transport.metro_interval_mins} minutes. Service is running normally.`;
+  }
+
+  if (normText.includes('bus') || normText.includes('shuttle') || normText.includes('delay')) {
+    if (signalsData.transport.bus_arrival_delay_mins > 0) {
+      return `Terminal shuttle buses are currently delayed by ${signalsData.transport.bus_arrival_delay_mins} minutes due to traffic conditions.`;
+    } else {
+      return "Terminal shuttle buses are running on schedule.";
+    }
+  }
+
+  return "I'm not sure about that. I can help with gate queue times, weather/slippery advisories, metro schedule, or terminal bus delays. What can I look up for you?";
 }
 
 // Floating Alert Overlay check logic
