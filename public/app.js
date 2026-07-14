@@ -2,6 +2,7 @@
 let currentStep = 0;
 let signalsData = null;
 let synthesisData = null;
+let activeProjection = 'current';
 
 // Tab Management
 const tabs = {
@@ -324,15 +325,24 @@ function renderCrowdPredictor() {
   const mapGrid = document.getElementById('crowd-map-grid');
   const metricsContainer = document.getElementById('crowd-metrics-container');
 
+  // Determine active dataset based on projection timeline selection
+  let activeGatesData = signalsData.gates;
+  if (activeProjection === '15m' && signalsData.predictions) {
+    activeGatesData = signalsData.predictions['15m'].gates;
+  } else if (activeProjection === '30m' && signalsData.predictions) {
+    activeGatesData = signalsData.predictions['30m'].gates;
+  }
+
+  const gates = Object.entries(activeGatesData);
+
   // Draw Heatmap Mock Grid
-  const gates = Object.entries(signalsData.gates);
   mapGrid.innerHTML = gates.map(([name, info]) => {
-    let colorClass = "bg-emerald-500/10 border-emerald-500/30 text-emerald-500";
-    if (info.status === 'busy') colorClass = "bg-amber-500/10 border-amber-500/30 text-amber-500";
-    if (info.status === 'overloaded' || info.status === 'critical') colorClass = "bg-red-500/20 border-red-500/50 text-red-500 animate-pulse";
+    let colorClass = "border border-emerald-500/20 bg-emerald-500/5 text-emerald-500";
+    if (info.status === 'busy') colorClass = "border border-amber-500/20 bg-amber-500/5 text-amber-500";
+    if (info.status === 'overloaded' || info.status === 'critical') colorClass = "border border-red-500/20 bg-red-500/5 text-red-500 animate-pulse";
     
     return `
-      <div class="border rounded-lg flex flex-col justify-between p-3 font-semibold text-xs ${colorClass}">
+      <div class="rounded-lg flex flex-col justify-between p-3 font-semibold text-xs transition-colors duration-150 ${colorClass}">
         <span>${name}</span>
         <div class="text-right">
           <span class="text-[10px] block opacity-80">Wait time</span>
@@ -361,6 +371,97 @@ function renderCrowdPredictor() {
       </div>
     `;
   }).join('');
+
+  // Render SVG Trend Chart
+  renderPredictiveChart();
+}
+
+function renderPredictiveChart() {
+  const chartContainer = document.getElementById('crowd-trend-chart-container');
+  if (!signalsData) return;
+
+  const stepsList = [
+    Math.max(0, currentStep - 2),
+    Math.max(0, currentStep - 1),
+    currentStep,
+    Math.min(4, currentStep + 1),
+    Math.min(4, currentStep + 2)
+  ];
+
+  const labels = ['-30m', '-15m', 'Now', '+15m', '+30m'];
+  const waitTimes = stepsList.map(s => {
+    if (s === 0) return 10;
+    if (s === 1) return 13;
+    if (s === 2) return 22;
+    if (s === 3) return 48;
+    return 52;
+  });
+
+  const containerWidth = chartContainer.clientWidth || 600;
+  const containerHeight = 160;
+  const paddingLeft = 40;
+  const paddingRight = 20;
+  const paddingTop = 20;
+  const paddingBottom = 30;
+
+  const graphWidth = containerWidth - paddingLeft - paddingRight;
+  const graphHeight = containerHeight - paddingTop - paddingBottom;
+  const maxValue = 60;
+
+  const points = waitTimes.map((val, idx) => {
+    const x = paddingLeft + (idx / 4) * graphWidth;
+    const y = paddingTop + graphHeight - (val / maxValue) * graphHeight;
+    return { x, y, value: val };
+  });
+
+  const linePath = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+  const bottomY = paddingTop + graphHeight;
+  const areaPath = `${linePath} L ${points[points.length - 1].x.toFixed(1)} ${bottomY} L ${points[0].x.toFixed(1)} ${bottomY} Z`;
+
+  const gridLines = [0, 20, 40, 60].map(val => {
+    const y = paddingTop + graphHeight - (val / maxValue) * graphHeight;
+    return `
+      <line x1="${paddingLeft}" y1="${y}" x2="${containerWidth - paddingRight}" y2="${y}" stroke="currentColor" class="text-zinc-200 dark:text-zinc-800" stroke-width="1" stroke-dasharray="2,4" />
+      <text x="${paddingLeft - 10}" y="${y + 4}" font-size="10" class="fill-zinc-400 font-medium" text-anchor="end">${val}m</text>
+    `;
+  }).join('');
+
+  const xAxisLabels = labels.map((label, idx) => {
+    const x = points[idx].x;
+    const isCurrent = idx === 2;
+    const textClass = isCurrent ? 'fill-brand font-bold' : 'fill-zinc-400 font-medium';
+    return `<text x="${x}" y="${containerHeight - 8}" font-size="10" class="${textClass}" text-anchor="middle">${label}</text>`;
+  }).join('');
+
+  const verticalLine = `
+    <line x1="${points[2].x}" y1="${paddingTop}" x2="${points[2].x}" y2="${bottomY}" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="3,3" />
+  `;
+
+  const markers = points.map((p, idx) => {
+    const isFuture = idx > 2;
+    const markerColor = isFuture ? '#f59e0b' : '#2563eb';
+    return `
+      <circle cx="${p.x}" cy="${p.y}" r="4" fill="${markerColor}" stroke="currentColor" class="text-white dark:text-zinc-900" stroke-width="1.5" />
+      <text x="${p.x}" y="${p.y - 8}" font-size="9" font-weight="bold" class="fill-zinc-700 dark:fill-zinc-300" text-anchor="middle">${p.value}m</text>
+    `;
+  }).join('');
+
+  chartContainer.innerHTML = `
+    <svg class="w-full h-full overflow-visible" viewBox="0 0 ${containerWidth} ${containerHeight}" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#2563eb" stop-opacity="0.15" />
+          <stop offset="100%" stop-color="#2563eb" stop-opacity="0.0" />
+        </linearGradient>
+      </defs>
+      ${gridLines}
+      <path d="${areaPath}" fill="url(#chart-grad)" />
+      <path d="${linePath}" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" />
+      ${verticalLine}
+      ${xAxisLabels}
+      ${markers}
+    </svg>
+  `;
 }
 
 // Render Fan Copilot Thin View (Tab 3)
@@ -405,7 +506,28 @@ function renderCopilot() {
   `;
 }
 
+// Setup timeline projection listeners
+function updateProjectionButtons() {
+  document.querySelectorAll('.proj-btn').forEach(btn => {
+    const proj = btn.id.replace('proj-', '');
+    if (proj === activeProjection) {
+      btn.className = "proj-btn px-3 py-1.5 rounded font-medium bg-white dark:bg-zinc-800 dark:text-white shadow-sm transition-all text-brand";
+    } else {
+      btn.className = "proj-btn px-3 py-1.5 rounded font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-all";
+    }
+  });
+}
+
+document.querySelectorAll('.proj-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    activeProjection = e.currentTarget.id.replace('proj-', '');
+    updateProjectionButtons();
+    renderCrowdPredictor();
+  });
+});
+
 // Initialize Application loading baseline step 0
 window.addEventListener('DOMContentLoaded', () => {
   loadScenarioStep(0);
+  updateProjectionButtons();
 });

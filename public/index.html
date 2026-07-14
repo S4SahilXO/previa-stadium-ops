@@ -202,6 +202,22 @@
           <h2 class="text-2xl font-bold">Predictive Crowd Intelligence</h2>
           <p class="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Zone density and gate throughput predictions for the next 15-30 minutes.</p>
         </div>
+
+        <!-- Timeline Selector -->
+        <div class="flex items-center space-x-2 border-b border-borderLight dark:border-borderDark pb-4">
+          <span class="text-xs font-semibold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Projection Timeline:</span>
+          <div class="flex space-x-1 bg-zinc-100 dark:bg-zinc-800/50 p-1 rounded-lg text-xs">
+            <button id="proj-current" class="proj-btn px-3 py-1.5 rounded font-medium bg-white dark:bg-zinc-800 dark:text-white shadow-sm transition-all text-brand">
+              Current State
+            </button>
+            <button id="proj-15m" class="proj-btn px-3 py-1.5 rounded font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-all">
+              +15 Min Projection
+            </button>
+            <button id="proj-30m" class="proj-btn px-3 py-1.5 rounded font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-all">
+              +30 Min Projection
+            </button>
+          </div>
+        </div>
         
         <!-- Interactive Heatmap Mockup Grid -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -217,6 +233,25 @@
             <div class="space-y-3" id="crowd-metrics-container">
               <!-- JS filled -->
             </div>
+          </div>
+        </div>
+
+        <!-- Dynamic SVG Trend Chart -->
+        <div class="border border-borderLight dark:border-borderDark bg-cardLight dark:bg-cardDark rounded-xl p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="font-semibold text-sm">Gate Wait Time Trajectory</h3>
+              <p class="text-[11px] text-zinc-500 dark:text-zinc-400">Past 30 mins and projected 30 mins wait trend for Gate 5</p>
+            </div>
+            <div class="flex items-center space-x-3 text-xs">
+              <div class="flex items-center space-x-1.5">
+                <span class="h-2 w-2 rounded-full bg-brand"></span>
+                <span class="text-zinc-500 text-[10px]">Wait Time (mins)</span>
+              </div>
+            </div>
+          </div>
+          <div id="crowd-trend-chart-container" class="h-48 w-full">
+            <!-- JS will inject dynamic SVG chart -->
           </div>
         </div>
       </div>

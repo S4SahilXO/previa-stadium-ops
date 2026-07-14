@@ -1,6 +1,6 @@
 import time
 
-def get_sensor_data(step=0):
+def get_sensor_data_base(step=0):
     """
     Simulates stadium operations sensor data for FIFA World Cup 2026.
     Compounding steps for the live demo scenario:
@@ -87,4 +87,35 @@ def get_sensor_data(step=0):
         data["gates"]["Gate 5"]["wait_time"] = 52
         data["gates"]["Gate 5"]["status"] = "critical"
         
+    return data
+
+def get_sensor_data(step=0):
+    """
+    Returns the current sensor data along with T+15 and T+30 minute projections.
+    """
+    # Current state data
+    data = get_sensor_data_base(step)
+    
+    # 15m projection is represented by the next logical step state
+    t15_data = get_sensor_data_base(min(4, step + 1))
+    
+    # 30m projection is represented by the step after next
+    t30_data = get_sensor_data_base(min(4, step + 2))
+    
+    # Format and append predictions payload
+    data["predictions"] = {
+        "15m": {
+            "gates": t15_data["gates"],
+            "weather": t15_data["weather"],
+            "transport": t15_data["transport"],
+            "incidents": t15_data["incidents"]
+        },
+        "30m": {
+            "gates": t30_data["gates"],
+            "weather": t30_data["weather"],
+            "transport": t30_data["transport"],
+            "incidents": t30_data["incidents"]
+        }
+    }
+    
     return data

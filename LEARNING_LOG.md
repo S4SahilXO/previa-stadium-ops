@@ -132,4 +132,26 @@ We refined the UI this way to satisfy the strict visual requirements of Section 
 Open the dashboard and toggle between Light and Dark modes. Notice the clean borders on cards and badges, and verify that all text blocks maintain clear contrast and read smoothly in both themes.
 
 ### Open questions / what's next
-In Phase 4, we will build out the Predictive Crowd module, displaying a zone-by-zone stadium entrance density chart and linking it directly to the active simulator.
+In the next step, we will wire and test the Gemini API connection with a simple script to verify our credentials before setting up the mock data pipeline in Phase 1.
+
+---
+
+## [Phase 4] — Predictive Crowd Module and Dynamic SVG Charts — 2026-07-14
+
+### What we built
+We built a predictive timeline state-projection view in the Crowd Predictor workspace, allowing operators to toggle between the "Current State", "+15 Min Projection", and "+30 Min Projection". We updated `simulator.py` to calculate these projections on-the-fly based on subsequent scenario steps, packaging them inside a clean `predictions` nested object. Finally, we wrote a dependency-free dynamic SVG wait-time trajectory line chart for Gate 5 that draws axes, dashed timeline separators, colored markers, gradient fills, and value labels in vanilla Javascript, updating instantly as steps and projection levels change.
+
+### Why we built it this way
+We opted to generate projections by recursively calling the simulation logic for subsequent scenario steps because it matches the compounding progression of time and ensures predictions are logically consistent. We wrote the trend chart in pure SVG using vanilla JavaScript rather than pulling in external libraries (such as Chart.js or D3) to maintain a zero-dependency build structure and remain under the 10 MB limits. The SVG chart performs exceptionally well, renders instantly on both themes, and supports high information density without unnecessary browser load times.
+
+### Key code/concepts to understand
+- [simulator.py](file:///g:/My%20Drive/Sahil_Files/challenge%204/simulator.py) (`get_sensor_data`) — updated to package projected telemetry structures.
+- [public/index.html](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/index.html) — contains container hooks for the timeline selectors and the dynamic trend chart.
+- [public/app.js](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/app.js) (`renderPredictiveChart`) — computes scaling offsets, maps wait times to Y-coords, X-coords, and compiles the SVG elements string.
+- Concept: SVG Line Plotting — using scalable vector graphics tags (`<path>`, `<circle>`, `<text>`) to draw data visualizations directly in HTML markup without drawing libraries.
+
+### Try it yourself
+Navigate to the "Crowd Predictor" tab and toggle between the projection buttons. Watch the stadium gate grid update dynamically, and observe the trajectory chart redraw Gate 5's line as you cycle the scenario step inputs.
+
+### Open questions / what's next
+In Phase 5, we will build the Fan Copilot advisor client layout, displaying tailored alerts, gate diversions, and transit updates based on active sensor data.
