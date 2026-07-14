@@ -3,12 +3,15 @@ let currentStep = 0;
 let signalsData = null;
 let synthesisData = null;
 let activeProjection = 'current';
+let incidentsData = [];
+let acknowledgedAlerts = new Set();
 
 // Tab Management
 const tabs = {
   command: { btn: 'tab-command', view: 'view-command' },
   crowd: { btn: 'tab-crowd', view: 'view-crowd' },
-  copilot: { btn: 'tab-copilot', view: 'view-copilot' }
+  copilot: { btn: 'tab-copilot', view: 'view-copilot' },
+  incidents: { btn: 'tab-incidents', view: 'view-incidents' }
 };
 
 Object.keys(tabs).forEach(key => {
@@ -35,6 +38,8 @@ function switchTab(activeKey) {
 
   if (activeKey === 'crowd') {
     renderCrowdPredictor();
+  } else if (activeKey === 'incidents') {
+    renderIncidentsLog();
   }
 }
 
@@ -89,6 +94,19 @@ async function loadScenarioStep(step) {
     signalsData = await signalsRes.json();
     synthesisData = await synthesisRes.json();
 
+    // Initialize client-side incident array from server signals details
+    incidentsData = (signalsData.incidents.details || []).map((inc, idx) => ({
+      id: `INC-2026-${100 + idx}`,
+      timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+      type: inc.type,
+      severity: inc.severity,
+      location: inc.location,
+      description: inc.description,
+      status: 'active'
+    }));
+
+    checkIncidentAlertOverlay();
+
     // Render components
     renderSignals();
     renderSynthesis();
@@ -134,7 +152,9 @@ function renderSignals() {
 
   const weather = signalsData.weather;
   const transport = signalsData.transport;
-  const incidents = signalsData.incidents;
+  
+  // Compute dynamic active incidents based on overrides
+  const activeIncidentsCount = incidentsData.filter(inc => inc.status === 'active').length;
 
   container.innerHTML = `
     <!-- Weather Card -->
@@ -177,8 +197,8 @@ function renderSignals() {
         <div class="flex justify-between"><span>Parking Occupancy:</span><span>${transport.parking_occupancy_pct}%</span></div>
         <div class="flex justify-between pt-2 border-t border-borderLight dark:border-borderDark">
           <span>Active Incidents:</span>
-          <span class="font-semibold ${incidents.active_count > 0 ? 'text-red-500 animate-pulse' : 'text-emerald-500'}">
-            ${incidents.active_count} Alert(s)
+          <span class="font-semibold ${activeIncidentsCount > 0 ? 'text-red-500 animate-pulse' : 'text-emerald-500'}">
+            ${activeIncidentsCount} Alert(s)
           </span>
         </div>
       </div>
@@ -588,6 +608,177 @@ function renderCopilot() {
   `;
 }
 
+// Floating Alert Overlay check logic
+function checkIncidentAlertOverlay() {
+  const overlay = document.getElementById('live-alert-overlay');
+  const overlayMessage = document.getElementById('alert-overlay-message');
+  if (!overlay || !overlayMessage) return;
+  
+  // Find active, unacknowledged High or Critical incidents
+  const criticalIncident = incidentsData.find(inc => 
+    (inc.severity === 'high' || inc.severity === 'critical') && 
+    inc.status === 'active' && 
+    !acknowledgedAlerts.has(inc.id)
+  );
+
+  if (criticalIncident) {
+    overlayMessage.textContent = `${criticalIncident.severity.toUpperCase()} ALERT: ${criticalIncident.description} (${criticalIncident.location})`;
+    overlay.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-24');
+    overlay.classList.add('opacity-100', 'translate-y-0');
+  } else {
+    overlay.classList.remove('opacity-100', 'translate-y-0');
+    overlay.classList.add('opacity-0', 'pointer-events-none', '-translate-y-24');
+  }
+}
+
+// Render Incident Logs Grid Table
+function renderIncidentsLog() {
+  const tbody = document.getElementById('incidents-log-tbody');
+  if (!tbody) return;
+
+  if (incidentsData.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" class="p-8 text-center text-zinc-400 dark:text-zinc-500 italic select-none">
+          No operational incidents logged. All systems normal.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = incidentsData.map(inc => {
+    // Style tags based on severity
+    let sevColor = "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900";
+    if (inc.severity === 'medium') sevColor = "border border-yellow-500/20 bg-yellow-500/5 text-yellow-600 dark:text-yellow-400";
+    if (inc.severity === 'high') sevColor = "border border-orange-500/20 bg-orange-500/5 text-orange-600 dark:text-orange-400";
+    if (inc.severity === 'critical') sevColor = "border border-red-500/20 bg-red-500/5 text-red-600 dark:text-red-400 animate-pulse";
+
+    // Style status tag
+    let statusColor = "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200";
+    if (inc.status === 'active') statusColor = "bg-red-50 text-red-700 dark:bg-red-950/20 dark:text-red-400";
+    if (inc.status === 'acknowledged') statusColor = "bg-amber-50 text-amber-700 dark:bg-amber-950/20 dark:text-amber-400";
+    if (inc.status === 'resolved') statusColor = "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-400";
+
+    // Render action buttons
+    let actionButtons = "";
+    if (inc.status === 'active') {
+      actionButtons += `<button onclick="overrideIncident('${inc.id}', 'acknowledged')" class="px-2 py-1 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 rounded font-semibold text-zinc-700 dark:text-zinc-300 transition-colors mr-1">Ack</button>`;
+    }
+    if (inc.status !== 'resolved') {
+      actionButtons += `<button onclick="overrideIncident('${inc.id}', 'resolved')" class="px-2 py-1 bg-emerald-500 hover:bg-emerald-600 text-white rounded font-semibold transition-colors mr-1">Resolve</button>`;
+      actionButtons += `<button onclick="escalateIncident('${inc.id}')" class="px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded font-semibold transition-colors">Escalate</button>`;
+    } else {
+      actionButtons += `<span class="text-zinc-400 italic font-medium select-none">Resolved</span>`;
+    }
+
+    return `
+      <tr class="hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30 transition-colors">
+        <td class="p-4 font-mono font-bold text-zinc-500">${inc.id}</td>
+        <td class="p-4 text-zinc-400">${inc.timestamp}</td>
+        <td class="p-4 font-semibold uppercase tracking-wider text-[10px]">${inc.type}</td>
+        <td class="p-4"><span class="px-2 py-0.5 rounded font-bold uppercase tracking-tight text-[10px] ${sevColor}">${inc.severity}</span></td>
+        <td class="p-4 font-medium">${inc.location}</td>
+        <td class="p-4"><span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${statusColor}">${inc.status}</span></td>
+        <td class="p-4 text-right">${actionButtons}</td>
+      </tr>
+      <tr class="border-none">
+        <td colspan="7" class="px-4 pb-4 pt-0 text-[11px] text-zinc-500 leading-relaxed border-none italic">${inc.description}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// Global action functions exposed for onclick handlers
+window.overrideIncident = function(id, newStatus) {
+  const inc = incidentsData.find(i => i.id === id);
+  if (inc) {
+    inc.status = newStatus;
+    if (newStatus === 'acknowledged') {
+      acknowledgedAlerts.add(id);
+    }
+    renderIncidentsLog();
+    renderSignals(); // update dynamic counts
+    checkIncidentAlertOverlay();
+  }
+};
+
+window.escalateIncident = function(id) {
+  const inc = incidentsData.find(i => i.id === id);
+  if (inc) {
+    inc.severity = 'critical';
+    inc.status = 'active';
+    acknowledgedAlerts.delete(id); // reset ack if escalated
+    renderIncidentsLog();
+    renderSignals(); // update dynamic counts
+    checkIncidentAlertOverlay();
+  }
+};
+
+// Form dialog toggle listeners
+const modal = document.getElementById('manual-incident-modal');
+const modalForm = document.getElementById('manual-incident-form');
+
+document.getElementById('trigger-mock-incident').addEventListener('click', () => {
+  modal.classList.remove('hidden');
+});
+
+document.getElementById('close-incident-modal').addEventListener('click', () => {
+  modal.classList.add('hidden');
+});
+
+modalForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  
+  const type = document.getElementById('modal-type').value;
+  const severity = document.getElementById('modal-severity').value;
+  const location = document.getElementById('modal-location').value;
+  const description = document.getElementById('modal-description').value;
+
+  const newInc = {
+    id: `INC-2026-${100 + incidentsData.length}`,
+    timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+    type,
+    severity,
+    location,
+    description,
+    status: 'active'
+  };
+
+  incidentsData.unshift(newInc); // push to top
+  modal.classList.add('hidden');
+  modalForm.reset();
+
+  renderIncidentsLog();
+  renderSignals();
+  checkIncidentAlertOverlay();
+});
+
+// Floating Alert Overlay actions click wiring
+document.getElementById('alert-overlay-dismiss').addEventListener('click', () => {
+  // Acknowledge all active High/Critical alerts currently triggering it
+  incidentsData.forEach(inc => {
+    if ((inc.severity === 'high' || inc.severity === 'critical') && inc.status === 'active') {
+      acknowledgedAlerts.add(inc.id);
+    }
+  });
+  checkIncidentAlertOverlay();
+  renderIncidentsLog();
+});
+
+document.getElementById('alert-overlay-details').addEventListener('click', () => {
+  // Automatically switch tab to Incidents Log
+  switchTab('incidents');
+  
+  // Acknowledge alerts when entering page so overlay goes away
+  incidentsData.forEach(inc => {
+    if ((inc.severity === 'high' || inc.severity === 'critical') && inc.status === 'active') {
+      acknowledgedAlerts.add(inc.id);
+    }
+  });
+  checkIncidentAlertOverlay();
+});
+
 // Setup timeline projection listeners
 function updateProjectionButtons() {
   document.querySelectorAll('.proj-btn').forEach(btn => {
@@ -613,4 +804,5 @@ window.addEventListener('DOMContentLoaded', () => {
   loadScenarioStep(0);
   updateProjectionButtons();
   updateCopilotClock();
+  checkIncidentAlertOverlay();
 });

@@ -86,6 +86,9 @@
       <button id="tab-copilot" class="px-4 py-1.5 rounded-md font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-all">
         Fan Copilot
       </button>
+      <button id="tab-incidents" class="px-4 py-1.5 rounded-md font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-950 dark:hover:text-zinc-100 transition-all">
+        Incident Logs
+      </button>
     </nav>
 
     <!-- Theme & System Status Controls -->
@@ -296,7 +299,111 @@
       </div>
     </div>
 
+    <!-- VIEW 4: INCIDENT LOGS VIEW -->
+    <div id="view-incidents" class="flex-1 p-8 overflow-y-auto custom-scrollbar hidden">
+      <div class="max-w-4xl mx-auto space-y-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-2xl font-bold">Operational Incident Logs</h2>
+            <p class="text-zinc-500 dark:text-zinc-400 text-sm mt-1">Live dispatch dashboard, alert severity controls, and security/medical logs.</p>
+          </div>
+          <button id="trigger-mock-incident" class="px-3.5 py-1.5 bg-brand hover:bg-brand/90 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors flex items-center space-x-1.5">
+            <i data-lucide="plus-circle" class="h-4 w-4"></i>
+            <span>Log Incident</span>
+          </button>
+        </div>
+
+        <!-- Incident Logs Grid Table -->
+        <div class="border border-borderLight dark:border-borderDark bg-cardLight dark:bg-cardDark rounded-xl overflow-hidden shadow-sm">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="bg-zinc-50 dark:bg-zinc-900 border-b border-borderLight dark:border-borderDark text-zinc-500 dark:text-zinc-400 font-semibold select-none">
+                <th class="p-4">ID</th>
+                <th class="p-4">Timestamp</th>
+                <th class="p-4">Type</th>
+                <th class="p-4">Severity</th>
+                <th class="p-4">Location</th>
+                <th class="p-4">Status</th>
+                <th class="p-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="incidents-log-tbody" class="divide-y divide-borderLight dark:divide-borderDark">
+              <!-- JS will render dynamic rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
   </main>
+
+  <!-- Live Alert Overlay Banner -->
+  <div id="live-alert-overlay" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-lg px-4 transition-all duration-300 transform -translate-y-24 opacity-0 pointer-events-none">
+    <div class="border border-red-500/30 bg-red-500/10 backdrop-blur text-red-700 dark:text-red-400 rounded-xl p-4 shadow-lg flex items-start justify-between space-x-4 pointer-events-auto">
+      <div class="flex items-start space-x-3 text-xs">
+        <span class="h-2 w-2 rounded-full bg-red-500 mt-1.5 animate-ping"></span>
+        <div>
+          <strong class="font-extrabold uppercase block tracking-wider text-[10px]">CRITICAL OPERATIONAL ALERT</strong>
+          <span id="alert-overlay-message" class="font-medium mt-1 block">Active Incident</span>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <button id="alert-overlay-details" class="px-2.5 py-1 bg-red-500/20 hover:bg-red-500/30 text-xs font-semibold rounded transition-colors">
+          Dispatch
+        </button>
+        <button id="alert-overlay-dismiss" class="p-1 hover:bg-red-500/20 rounded text-red-500">
+          <i data-lucide="x" class="h-4 w-4"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual Log Modal Dialog -->
+  <div id="manual-incident-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm hidden">
+    <div class="border border-borderLight dark:border-borderDark bg-cardLight dark:bg-cardDark rounded-xl p-6 w-full max-w-sm shadow-xl space-y-4">
+      <div class="flex items-center justify-between border-b border-borderLight dark:border-borderDark pb-3">
+        <h4 class="font-bold text-sm">Log New Incident</h4>
+        <button id="close-incident-modal" class="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded text-zinc-500">
+          <i data-lucide="x" class="h-4 w-4"></i>
+        </button>
+      </div>
+      
+      <form id="manual-incident-form" class="space-y-3 text-xs">
+        <div class="space-y-1">
+          <label class="font-semibold text-zinc-500 block">Incident Type</label>
+          <select id="modal-type" class="w-full border border-borderLight dark:border-borderDark bg-zinc-50 dark:bg-zinc-900 rounded p-2 focus:outline-none focus:ring-1 focus:ring-brand">
+            <option value="medical">Medical</option>
+            <option value="security">Security</option>
+            <option value="weather">Weather</option>
+          </select>
+        </div>
+        
+        <div class="space-y-1">
+          <label class="font-semibold text-zinc-500 block">Severity</label>
+          <select id="modal-severity" class="w-full border border-borderLight dark:border-borderDark bg-zinc-50 dark:bg-zinc-900 rounded p-2 focus:outline-none focus:ring-1 focus:ring-brand">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+        
+        <div class="space-y-1">
+          <label class="font-semibold text-zinc-500 block">Location</label>
+          <input type="text" id="modal-location" placeholder="e.g. Gate 5 Entrance Plaza" class="w-full border border-borderLight dark:border-borderDark bg-zinc-50 dark:bg-zinc-900 rounded p-2 focus:outline-none focus:ring-1 focus:ring-brand" required />
+        </div>
+        
+        <div class="space-y-1">
+          <label class="font-semibold text-zinc-500 block">Description</label>
+          <textarea id="modal-description" placeholder="e.g. Fan reported chest pain." class="w-full border border-borderLight dark:border-borderDark bg-zinc-50 dark:bg-zinc-900 rounded p-2 h-16 focus:outline-none focus:ring-1 focus:ring-brand" required></textarea>
+        </div>
+        
+        <button type="submit" class="w-full py-2 bg-brand text-white rounded font-bold hover:bg-brand/90 transition-colors mt-2">
+          Dispatch Incident
+        </button>
+      </form>
+    </div>
+  </div>
 
   <!-- Script logic hook -->
   <script src="/app.js"></script>

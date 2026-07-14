@@ -176,4 +176,26 @@ We opted to wrap the Fan Copilot inside a realistic mobile device shell to give 
 Open the "Fan Copilot" tab. Note the live digital clock updating to match your device time. Cycle steps: on Step 0 (Clear) the animated walk arrow directs traffic straight into Gate 5; on Step 3 (Surge) the route maps redraws showing a congested red cross on Gate 5 and a blue diversion path to Gate 6.
 
 ### Open questions / what's next
-In Phase 6, we will implement the Security / Incident Logging system, showing alert widgets, logs detail grid, and map coordinate overrides when medical or safety emergencies trigger.
+In the next step, we will wire and test the Gemini API connection with a simple script to verify our credentials before setting up the mock data pipeline in Phase 1.
+
+---
+
+## [Phase 6] — Incident Logging and Severity Overrides — 2026-07-14
+
+### What we built
+We built a dispatcher control room layout inside a dedicated 4th tab workspace: **Incident Logs**. It contains a high-density, interactive data grid showing incident IDs, local timestamps, severities, locations, and detailed descriptions. We implemented action controls on each row (Acknowledge, Resolve, Escalate) which modify the status of incidents dynamically. We added a floating, top-sliding live alert overlay notification banner that triggers automatically when High/Critical incidents are unacknowledged, and built an inline modal overlay form to let operators manually log and dispatch custom events.
+
+### Why we built it this way
+We opted to manage the incidents log entirely in client-side state arrays initialized from simulator values to avoid complex database write routes on our zero-dependency Python server. We wired the signals panel sidebar to read from this dynamic client-side array rather than the static server response so that overrides (such as clicking "Resolve") immediately reflect across the entire user interface. Using CSS transitions for the overlay banner slide-down triggers allowed us to create crisp hardware console alerts without loading large alert overlay frameworks.
+
+### Key code/concepts to understand
+- [public/index.html](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/index.html) — contains the tab button, the dispatch logs grid structure, the manual incident log dialog form, and the top-floating overlay banner.
+- [public/app.js](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/app.js) (`renderIncidentsLog`) — renders the table rows and attaches click event handlers to invoke local overrides.
+- [public/app.js](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/app.js) (`checkIncidentAlertOverlay`) — evaluates unacknowledged active severities to trigger slide-down banner animations.
+- Concept: Client-side override state — keeping track of system overrides in local client arrays to enable immediate updates across separate views without blocking database roundtrips.
+
+### Try it yourself
+Switch to Step 4 to trigger the medical incident. Click "Dispatch" on the top-floating banner to redirect to the Incident Logs tab. Click "Resolve" next to the slip-and-fall row and notice the left-hand sidebar update to green "0 Alert(s)" immediately.
+
+### Open questions / what's next
+In Phase 7, we will build out the Fan Copilot chat workspace, adding a mock chat bubble UI that lets fans interactively ask questions and receive operational guidance.
