@@ -47,3 +47,9 @@ lerna-debug.log*
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Unnecessary files for final project submission
+test-gemini.py
+LEARNING_LOG_INSTRUCTIONS.md
+PREVIA_MASTER_BUILD_PROMPT.md
+SUBMISSION_CHECKLIST.md
