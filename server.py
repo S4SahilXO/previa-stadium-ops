@@ -2,8 +2,77 @@ import os
 import json
 import http.server
 import socketserver
+import time
+import urllib.request
+import urllib.error
 from urllib.parse import urlparse, parse_qs
 import simulator
+
+# Read API key from environment or local .env file
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+if not GEMINI_API_KEY:
+    try:
+        env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+        if os.path.exists(env_path):
+            with open(env_path, "r", encoding="utf-8-sig") as f:
+                for line in f:
+                    if "GEMINI_API_KEY=" in line:
+                        GEMINI_API_KEY = line.split("GEMINI_API_KEY=", 1)[1].strip()
+                        break
+    except Exception as e:
+        print(f"Error loading .env file: {e}")
+
+if not GEMINI_API_KEY:
+    print("Warning: GEMINI_API_KEY not found in environment or .env. AI Pipeline will use fallback mocks.")
+
+def call_gemini_api(prompt):
+    """
+    Calls the Gemini API (gemini-3.5-flash) using standard urllib library.
+    """
+    if not GEMINI_API_KEY:
+        raise ValueError("API key not configured")
+        
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={GEMINI_API_KEY}"
+    payload = {
+        "contents": [{
+            "parts": [{
+                "text": prompt
+            }]
+        }]
+    }
+    
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    req = urllib.request.Request(
+        url, 
+        data=json.dumps(payload).encode("utf-8"), 
+        headers=headers, 
+        method="POST"
+    )
+    
+    # 10 second timeout for response safety
+    with urllib.request.urlopen(req, timeout=10) as response:
+        res_data = json.loads(response.read().decode("utf-8"))
+        try:
+            return res_data["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError) as e:
+            raise ValueError(f"Unexpected API response structure: {res_data}") from e
+
+def extract_json_payload(response_text):
+    """
+    Strips markdown code fences and returns parsed JSON content.
+    """
+    text = response_text.strip()
+    if text.startswith("```json"):
+        text = text[7:]
+    elif text.startswith("```"):
+        text = text[3:]
+    if text.endswith("```"):
+        text = text[:-3]
+    return json.loads(text.strip())
 
 class PreviaHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -25,7 +94,7 @@ class PreviaHandler(http.server.SimpleHTTPRequestHandler):
         elif path == '/api/synthesis':
             # Extract step from query parameters
             step = int(query.get('step', [0])[0])
-            data = self.get_mock_synthesis(step)
+            data = self.get_real_synthesis(step)
             self.send_json_response(data)
             
         else:
@@ -41,6 +110,92 @@ class PreviaHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Content-Length', str(len(json_bytes)))
         self.end_headers()
         self.wfile.write(json_bytes)
+
+    def get_real_synthesis(self, step):
+        """
+        Combines current sensor signals into a single prompt, requests
+        virtual multi-agent synthesis from Gemini, measures latency,
+        and falls back to mock synthesis on failure.
+        """
+        sensor_data = simulator.get_sensor_data(step)
+        
+        prompt = f"""You are the central reasoning orchestrator for Previa, an operational decision-support platform for FIFA World Cup 2026 stadium operations.
+You receive raw sensor signals from the stadium and must reason through the perspectives of six specialist operational agents:
+1. Crowd Agent (Gate queue wait times, flow rates, density)
+2. Transport Agent (Metro intervals, bus delays, parking occupancy)
+3. Security Agent (Perimeter safety, queue safety)
+4. Medical Agent (Heat stroke/exhaustion, emergency requests)
+5. Weather Agent (Rain rate, wind speed, visibility)
+6. Operations Agent (Scanner counts, staff workload)
+
+Analyze these raw signals carefully:
+{json.dumps(sensor_data, indent=2)}
+
+You must produce a JSON payload strictly matching the following schema. Return ONLY a single raw JSON block. Do not include markdown code fences (```json or ```). Do not include any leading or trailing commentary.
+
+JSON Schema:
+{{
+  "situation_summary": "1-sentence plain language summary of the overall situation.",
+  "perspectives": [
+    {{
+      "role": "crowd",
+      "assessment": "1-2 sentence assessment of crowd issues.",
+      "risk_level": "low|medium|high|critical"
+    }},
+    {{
+      "role": "transport",
+      "assessment": "1-2 sentence assessment of transport issues.",
+      "risk_level": "low|medium|high|critical"
+    }},
+    {{
+      "role": "security",
+      "assessment": "1-2 sentence assessment of security issues.",
+      "risk_level": "low|medium|high|critical"
+    }},
+    {{
+      "role": "medical",
+      "assessment": "1-2 sentence assessment of medical issues.",
+      "risk_level": "low|medium|high|critical"
+    }},
+    {{
+      "role": "weather",
+      "assessment": "1-2 sentence assessment of weather conditions.",
+      "risk_level": "low|medium|high|critical"
+    }},
+    {{
+      "role": "operations",
+      "assessment": "1-2 sentence assessment of scanner/staff issues.",
+      "risk_level": "low|medium|high|critical"
+    }}
+  ],
+  "recommended_actions": [
+    {{
+      "action": "Description of action 1 (mandatory action if risk levels are high/critical, otherwise baseline action).",
+      "rank": 1,
+      "confidence": 0.0 to 1.0 (float reflecting probability of success/relevance),
+      "expected_impact": "Plain-language expected outcome.",
+      "reasoning": "Plain-language explanation of why this action is chosen."
+    }}
+  ],
+  "overall_confidence": 0.0 to 1.0 (float representing confidence in overall system assessment)
+}}
+"""
+        start_time = time.time()
+        try:
+            response_text = call_gemini_api(prompt)
+            data = extract_json_payload(response_text)
+            latency_ms = int((time.time() - start_time) * 1000)
+            data["latency_ms"] = latency_ms
+            data["ai_mode"] = "active"
+            print(f"Gemini API call succeeded in {latency_ms}ms")
+            return data
+        except Exception as e:
+            latency_ms = int((time.time() - start_time) * 1000)
+            print(f"Gemini API call failed or timed out: {e}. Falling back to mock synthesis.")
+            data = self.get_mock_synthesis(step)
+            data["latency_ms"] = latency_ms
+            data["ai_mode"] = "fallback"
+            return data
 
     def get_mock_synthesis(self, step):
         """
@@ -192,7 +347,7 @@ Handler = PreviaHandler
 # Allow reuse of the port address immediately after server stop
 socketserver.TCPServer.allow_reuse_address = True
 
-with socketserver.TCPServer(("", PORT), Handler) as httpd:
+with http.server.ThreadingHTTPServer(("", PORT), Handler) as httpd:
     print(f"Previa Server running at http://localhost:{PORT}")
     try:
         httpd.serve_forever()

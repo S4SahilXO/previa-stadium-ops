@@ -208,6 +208,11 @@ function renderSynthesis() {
   document.getElementById('synthesis-summary-title').textContent = synthesisData.situation_summary;
   document.getElementById('synthesis-confidence').textContent = `${Math.round(synthesisData.overall_confidence * 100)}%`;
 
+  // Render Latency and AI Execution Mode
+  const modeText = synthesisData.ai_mode === 'active' ? 'Active' : 'Fallback';
+  const latencyText = synthesisData.latency_ms ? ` • Latency: ${(synthesisData.latency_ms / 1000).toFixed(2)}s (${modeText})` : '';
+  document.getElementById('synthesis-header-subtitle').innerHTML = `Orchestrated AI Assessment${latencyText}`;
+
   // Render Perspectives Risk Grid
   const perspectivesContainer = document.getElementById('perspectives-container');
   perspectivesContainer.innerHTML = synthesisData.perspectives.map(p => {

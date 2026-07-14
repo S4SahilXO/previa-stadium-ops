@@ -26,4 +26,88 @@ We chose a local Git setup to facilitate small, frequent, and structured commits
 - **Response:** `Hello, my friend.`
 
 ### Open questions / what's next
-In Phase 1, we will define our simulated dataset (stadium crowd flow, gate counts, weather feeds, transportation ETAs) and create a mock version of the operations dashboard interface to establish our frontend design language.
+In the next step, we will wire and test the Gemini API connection with a simple script to verify our credentials before setting up the mock data pipeline in Phase 1.
+
+---
+
+## [Phase 1] — Simulated Dataset and Operations Dashboard Mock — 2026-07-14
+
+### What we built
+We built a simulated stadium telemetry dataset representing various real-time sensor signals, including wait times, flow rates, density metrics for six entry gates, weather stats, public transit intervals, bus delay schedules, parking lot fill rates, and medical or security logs. We wrote a lightweight, single-threaded Python HTTP server (`server.py`) using only standard libraries to serve this telemetry via REST endpoints and host our frontend static files. Finally, we created an interactive operations dashboard mockup in HTML5, CSS, and Vanilla JavaScript with a fully functional light and dark theme toggler, a tab navigation structure, and a scenario panel to cycle through the five predefined demo stages.
+
+### Why we built it this way
+We opted to serve the web application and REST endpoints from a single Python file using `http.server` because it completely eliminates node packages and framework dependencies, aligning perfectly with the Ponytail YAGNI (You Aren't Gonna Need It) rule. Serving the Tailwind CSS framework via a public CDN allowed us to implement modern, high-density layouts immediately without adding complex bundlers or build steps. We decided to store the simulated sensor data inside a modular module (`simulator.py`) to easily handle state changes representing compounding operational disasters for the judging demo scenario.
+
+### Key code/concepts to understand
+- [simulator.py](file:///g:/My%20Drive/Sahil_Files/challenge%204/simulator.py) — computes gate, weather, transport, and incident data matching the step (0-4) of the demo.
+- [server.py](file:///g:/My%20Drive/Sahil_Files/challenge%204/server.py) — standard-library web server delivering files from `public/` and handling query params.
+- [public/index.html](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/index.html) — layout shell including signals feed, AI analysis summaries, recommendations, and detail panel.
+- [public/app.js](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/app.js) — handles tab transitions, theme persistence via local storage, and async fetching of sensors.
+- Concept: Single-threaded blocking server — a web server that handles requests in a sequential queue, which will temporarily delay asset load times if an endpoint runs a long-running task.
+
+### Try it yourself
+Open the Previa dashboard in your browser and switch to the "Fan Copilot" tab. Cycle through the scenario controller buttons at the top of the screen (0 to 4) and observe how the fan advisory card changes from a green "Operations Normal" message to an amber alert directing fans away from congested areas.
+
+---
+
+## [Phase 2] — Real AI Pipeline and Orchestrated Synthesis — 2026-07-14
+
+### What we built
+We wired the actual virtual multi-perspective AI reasoning pipeline by replacing our mock `/api/synthesis` endpoint with a live call to the Gemini API (`gemini-3.5-flash`). We designed a structured prompt that takes the raw sensor data and instructs Gemini to act as a panel of six specialist perspectives—Crowd, Transport, Security, Medical, Weather, and Operations—synthesize a situation summary, and generate ranked, confidence-scored recommended actions returned as a clean JSON payload. We added robust string parsing to strip markdown fences, implemented an automatic mock fallback class to handle resource limits or API errors gracefully, and upgraded the Python backend to a multi-threaded `ThreadingHTTPServer` to process assets and API requests concurrently.
+
+### Why we built it this way
+We chose to implement the Gemini API request using Python's built-in `urllib` module rather than the Google Generative AI SDK to keep the project completely dependency-free and under the 10 MB limit. We upgraded the server to a multi-threaded architecture because the live Gemini API call is a long-running HTTPS task; a single-threaded server would block the browser from downloading script assets or other signals concurrently, resulting in connection timeouts. We built the mock fallback wrapper so that even if the client exceeds the Free Tier API rate limit (5 requests per minute), the dashboard continues to display realistic data instead of crashing.
+
+### Key code/concepts to understand
+- [server.py](file:///g:/My%20Drive/Sahil_Files/challenge%204/server.py) (`get_real_synthesis`) — aggregates current signals, calls Gemini, parses markdown JSON wrapper, measures latency, and handles exception fallbacks.
+- [public/app.js](file:///g:/My%20Drive/Sahil_Files/challenge%204/public/app.js) (`renderSynthesis`) — updated to display the AI response latency and execution mode (Active vs. Fallback) next to the subtitle.
+- Concept: Multi-threaded HTTP server — a web server that spawns a new thread for each connection, allowing slow API operations and fast static files to be served in parallel.
+- Concept: API Rate Limiting (HTTP 429) — standard restriction on free-tier APIs limiting requests per minute, which requires client applications to implement robust fallbacks.
+
+### Try it yourself
+Look at the local terminal output or the developer console in your browser when you switch steps. You will notice the measured latency (e.g. `Latency: 2.15s (Active)` or `Latency: 0.00s (Fallback)`). Try sending rapid requests (more than 5 per minute) to deliberately trigger the HTTP 429 error and see the server seamlessly transition to Fallback mode to preserve operations.
+
+### Prompt and Response Log
+- **Model:** `gemini-3.5-flash` (API version `v1beta`)
+- **Prompt:**
+```
+You are the central reasoning orchestrator for Previa, an operational decision-support platform for FIFA World Cup 2026 stadium operations.
+You receive raw sensor signals from the stadium and must reason through the perspectives of six specialist operational agents:
+1. Crowd Agent (Gate queue wait times, flow rates, density)
+2. Transport Agent (Metro intervals, bus delays, parking occupancy)
+3. Security Agent (Perimeter safety, queue safety)
+4. Medical Agent (Heat stroke/exhaustion, emergency requests)
+5. Weather Agent (Rain rate, wind speed, visibility)
+6. Operations Agent (Scanner counts, staff workload)
+
+Analyze these raw signals carefully:
+[JSON sensor payload]
+
+You must produce a JSON payload strictly matching the following schema. Return ONLY a single raw JSON block. Do not include markdown code fences (```json or ```). Do not include any leading or trailing commentary.
+
+JSON Schema:
+{
+  "situation_summary": "1-sentence plain language summary of the overall situation.",
+  "perspectives": [
+    {
+      "role": "crowd",
+      "assessment": "1-2 sentence assessment of crowd issues.",
+      "risk_level": "low|medium|high|critical"
+    },
+    ...
+  ],
+  "recommended_actions": [
+    {
+      "action": "Description of action 1",
+      "rank": 1,
+      "confidence": 0.0 to 1.0,
+      "expected_impact": "Plain-language expected outcome.",
+      "reasoning": "Plain-language explanation of why this action is chosen."
+    }
+  ],
+  "overall_confidence": 0.0 to 1.0
+}
+```
+
+### Open questions / what's next
+In Phase 3, we will refine the Command Center UI to achieve a state-of-the-art visual style, polishing typography, margins, backgrounds, and element spacing in both Light and Dark modes.
