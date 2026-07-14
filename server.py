@@ -28,38 +28,57 @@ if not GEMINI_API_KEY:
 
 def call_gemini_api(prompt):
     """
-    Calls the Gemini API (gemini-3.5-flash) using standard urllib library.
+    Calls the Gemini API using standard urllib library.
+    Tries multiple Gemini models sequentially to handle rate limits and service quotas.
     """
     if not GEMINI_API_KEY:
         raise ValueError("API key not configured")
         
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key={GEMINI_API_KEY}"
-    payload = {
-        "contents": [{
-            "parts": [{
-                "text": prompt
-            }]
-        }]
-    }
+    models = [
+        "gemini-3.5-flash", 
+        "gemini-2.5-flash", 
+        "gemini-2.0-flash", 
+        "gemini-1.5-flash", 
+        "gemini-1.5-flash-8b", 
+        "gemini-1.5-pro", 
+        "gemini-1.0-pro"
+    ]
+    last_error = None
     
-    headers = {
-        "Content-Type": "application/json"
-    }
-    
-    req = urllib.request.Request(
-        url, 
-        data=json.dumps(payload).encode("utf-8"), 
-        headers=headers, 
-        method="POST"
-    )
-    
-    # 10 second timeout for response safety
-    with urllib.request.urlopen(req, timeout=10) as response:
-        res_data = json.loads(response.read().decode("utf-8"))
+    for model in models:
         try:
-            return res_data["candidates"][0]["content"]["parts"][0]["text"]
-        except (KeyError, IndexError) as e:
-            raise ValueError(f"Unexpected API response structure: {res_data}") from e
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={GEMINI_API_KEY}"
+            payload = {
+                "contents": [{
+                    "parts": [{
+                        "text": prompt
+                    }]
+                }]
+            }
+            
+            headers = {
+                "Content-Type": "application/json"
+            }
+            
+            req = urllib.request.Request(
+                url, 
+                data=json.dumps(payload).encode("utf-8"), 
+                headers=headers, 
+                method="POST"
+            )
+            
+            with urllib.request.urlopen(req, timeout=10) as response:
+                res_data = json.loads(response.read().decode("utf-8"))
+                try:
+                    return res_data["candidates"][0]["content"]["parts"][0]["text"]
+                except (KeyError, IndexError) as e:
+                    raise ValueError(f"Unexpected API response structure: {res_data}") from e
+        except Exception as e:
+            print(f"Error calling model {model}: {e}. Trying next fallback...")
+            last_error = e
+            
+    # If all models failed, raise the last exception
+    raise last_error
 
 def extract_json_payload(response_text):
     """
