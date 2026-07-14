@@ -116,9 +116,9 @@ function renderSignals() {
   if (!signalsData) return;
 
   const gatesList = Object.entries(signalsData.gates).map(([name, info]) => {
-    let badgeColor = "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200";
-    if (info.status === 'busy') badgeColor = "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400";
-    if (info.status === 'overloaded' || info.status === 'critical') badgeColor = "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 animate-pulse";
+    let badgeColor = "border border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400";
+    if (info.status === 'busy') badgeColor = "border border-amber-500/20 bg-amber-500/5 text-amber-600 dark:text-amber-400";
+    if (info.status === 'overloaded' || info.status === 'critical') badgeColor = "border border-red-500/20 bg-red-500/5 text-red-600 dark:text-red-400 animate-pulse";
     
     return `
       <div class="flex items-center justify-between border-b border-borderLight dark:border-borderDark py-2 text-xs">
@@ -190,13 +190,13 @@ function renderSignals() {
 function getRiskStyle(level) {
   switch (level.toLowerCase()) {
     case 'critical':
-      return 'bg-red-50 text-red-700 border-red-200 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/50';
+      return 'border-red-500/20 text-red-600 dark:text-red-400 bg-red-500/5';
     case 'high':
-      return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50';
+      return 'border-orange-500/20 text-orange-600 dark:text-orange-400 bg-orange-500/5';
     case 'medium':
-      return 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/20 dark:text-yellow-400 dark:border-yellow-900/50';
+      return 'border-yellow-500/20 text-yellow-600 dark:text-yellow-400 bg-yellow-500/5';
     default:
-      return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400 dark:border-emerald-900/50';
+      return 'border-emerald-500/20 text-emerald-600 dark:text-emerald-400 bg-emerald-500/5';
   }
 }
 
@@ -217,10 +217,18 @@ function renderSynthesis() {
   const perspectivesContainer = document.getElementById('perspectives-container');
   perspectivesContainer.innerHTML = synthesisData.perspectives.map(p => {
     const style = getRiskStyle(p.risk_level);
+    let indicatorColor = "bg-emerald-500";
+    if (p.risk_level === 'critical') indicatorColor = "bg-red-500";
+    if (p.risk_level === 'high') indicatorColor = "bg-orange-500";
+    if (p.risk_level === 'medium') indicatorColor = "bg-yellow-500";
+    
     return `
-      <div class="border rounded-lg p-3 text-center transition-all ${style}">
+      <div class="border rounded-lg p-3 flex flex-col justify-between items-center transition-all ${style}">
         <span class="text-[10px] font-semibold uppercase tracking-wider block opacity-70">${p.role}</span>
-        <span class="text-xs font-bold block mt-1 uppercase tracking-tight">${p.risk_level}</span>
+        <div class="flex items-center space-x-1.5 mt-2">
+          <span class="h-1.5 w-1.5 rounded-full ${indicatorColor}"></span>
+          <span class="text-xs font-bold block uppercase tracking-tight">${p.risk_level}</span>
+        </div>
       </div>
     `;
   }).join('');
@@ -361,24 +369,24 @@ function renderCopilot() {
   if (!signalsData || !synthesisData) return;
 
   // Tailored recommendation message to fans
-  let statusHeader = "🟢 Operations Normal";
+  let statusHeader = "Operations Normal";
   let statusMessage = "Lusail Stadium is running smoothly. All gates are clear and queue times are under 10 minutes.";
   let actionCard = `
-    <div class="border border-emerald-100 dark:border-emerald-950 bg-emerald-50/30 dark:bg-emerald-950/10 rounded-lg p-4 text-xs text-emerald-800 dark:text-emerald-400">
+    <div class="border border-emerald-500/20 bg-emerald-500/5 rounded-lg p-4 text-xs text-emerald-700 dark:text-emerald-400">
       <strong>Pro Tip:</strong> Arrive through your designated ticket gate. Gate wait times are currently minimal.
     </div>
   `;
 
   if (currentStep >= 1) {
-    statusHeader = "🌧️ Weather Alert: Heavy Rain";
-    statusMessage = "Rain has started at Lusail Stadium. concourses and plazas may be wet. Please walk carefully.";
+    statusHeader = "Weather Alert: Heavy Rain";
+    statusMessage = "Rain has started at Lusail Stadium. Concourses and plazas may be wet. Please walk carefully.";
   }
   
   if (currentStep >= 3) {
-    statusHeader = "⚠️ Gate 5 Alert: High Congestion";
+    statusHeader = "Gate 5 Alert: High Congestion";
     statusMessage = "Gate 5 is currently experiencing extreme congestion and wait times exceed 45 minutes. Ticket scanning is slowed down by rain conditions.";
     actionCard = `
-      <div class="border border-amber-100 dark:border-amber-950 bg-amber-50/30 dark:bg-amber-950/10 rounded-lg p-4 text-xs text-amber-800 dark:text-amber-400">
+      <div class="border border-amber-500/20 bg-amber-500/5 rounded-lg p-4 text-xs text-amber-700 dark:text-amber-400">
         <strong>Required Action:</strong> If you are headed to Gate 5, please follow stadium staff instructions and redirect to <strong>Gate 6</strong>, which has wait times under 5 minutes.
       </div>
     `;
